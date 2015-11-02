@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "bitmap.h"
+#include "shll.h"
 
 #ifndef HLL_H
 #define HLL_H
@@ -12,6 +13,16 @@ typedef struct {
     unsigned char precision;
     uint32_t *registers;
     hlld_bitmap *bm;
+} hll_t_normal;
+
+typedef enum { NORMAL, SLIDING } hll_type;
+
+typedef struct {
+    hll_type type;
+    union {
+        hll_t_normal normal;
+        shll_t sliding;
+    };
 } hll_t;
 
 /**

@@ -8,6 +8,7 @@ State of The Art Cardinality Estimation Algorithm"
  * a dense representation and avoid the sparse/dense conversions.
  *
  */
+#include <assert.h>
 #include <stdlib.h>
 #include <math.h>
 #include <strings.h>
@@ -39,8 +40,11 @@ int hll_init(unsigned char precision, hll_t *h) {
     if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION)
         return -1;
 
+    h->type = NORMAL;
+    hll_t_normal *hn = &(h->normal);
+
     // Store precision
-    h->precision = precision;
+    hn->precision = precision;
 
     // Determine how many registers are needed
     int reg = NUM_REG(precision);
@@ -49,9 +53,9 @@ int hll_init(unsigned char precision, hll_t *h) {
     int words = INT_CEIL(reg, REG_PER_WORD);
 
     // Allocate and zero out the registers
-    h->bm = NULL;
-    h->registers = calloc(words, sizeof(uint32_t));
-    if (!h->registers) return -1;
+    hn->bm = NULL;
+    hn->registers = calloc(words, sizeof(uint32_t));
+    if (!hn->registers) return -1;
     return 0;
 }
 
@@ -63,14 +67,16 @@ int hll_init(unsigned char precision, hll_t *h) {
  * @arg h The HLL to initialize
  * @return 0 on success
  */
-int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *h) {
+int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *hu) {
     // Ensure the precision is somewhat sane
-    if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION)
+    if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION || hu->type == NORMAL)
         return -1;
 
     // Check the bitmap size
     if (hll_bytes_for_precision(precision) != bm->size)
         return -1;
+
+    hll_t_normal *h = &(hu->normal);
 
     // Store precision
     h->precision = precision;
@@ -86,7 +92,9 @@ int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *h) {
  * Destroys an hll. Closes the bitmap, but does not free it.
  * @return 0 on success
  */
-int hll_destroy(hll_t *h) {
+int hll_destroy(hll_t *hu) {
+    assert(hu->type == NORMAL);
+    hll_t_normal *h = &(hu->normal);
     // Close the bitmap
     if (h->bm) {
         bitmap_close(h->bm);
@@ -102,13 +110,17 @@ int hll_destroy(hll_t *h) {
     return 0;
 }
 
-static int get_register(hll_t *h, int idx) {
+static int get_register(hll_t *hu, int idx) {
+    assert(hu->type == NORMAL);
+    hll_t_normal *h = &(hu->normal);
     uint32_t word = *(h->registers + (idx / REG_PER_WORD));
     word = word >> REG_WIDTH * (idx % REG_PER_WORD);
     return word & ((1 << REG_WIDTH) - 1);
 }
 
-static void set_register(hll_t *h, int idx, int val) {
+static void set_register(hll_t *hu, int idx, int val) {
+    assert(hu->type == NORMAL);
+    hll_t_normal *h = &(hu->normal);
     uint32_t *word = h->registers + (idx / REG_PER_WORD);
 
     // Shift the val into place
@@ -139,7 +151,9 @@ void hll_add(hll_t *h, char *key) {
  * @arg h The hll to add to
  * @arg hash The hash to add
  */
-void hll_add_hash(hll_t *h, uint64_t hash) {
+void hll_add_hash(hll_t *hu, uint64_t hash) {
+    assert(hu->type == NORMAL);
+    hll_t_normal *h = &(hu->normal);
     // Determine the index using the first p bits
     int idx = hash >> (64 - h->precision);
 
@@ -150,8 +164,8 @@ void hll_add_hash(hll_t *h, uint64_t hash) {
     int leading = __builtin_clzll(hash) + 1;
 
     // Update the register if the new value is larger
-    if (leading > get_register(h, idx)) {
-        set_register(h, idx, leading);
+    if (leading > get_register(hu, idx)) {
+        set_register(hu, idx, leading);
     }
 }
 
@@ -175,7 +189,9 @@ static double alpha(unsigned char precision) {
 /*
  * Computes the raw cardinality estimate
  */
-static double raw_estimate(hll_t *h, int *num_zero) {
+static double raw_estimate(hll_t *hu, int *num_zero) {
+    assert(hu->type == NORMAL);
+    hll_t_normal *h = &(hu->normal);
     unsigned char precision = h->precision;
     int num_reg = NUM_REG(precision);
     double multi = alpha(precision) * num_reg * num_reg;
@@ -183,7 +199,7 @@ static double raw_estimate(hll_t *h, int *num_zero) {
     int reg_val;
     double inv_sum = 0;
     for (int i=0; i < num_reg; i++) {
-        reg_val = get_register(h, i);
+        reg_val = get_register(hu, i);
         inv_sum += pow(2.0, -1 * reg_val);
         if (!reg_val) *num_zero += 1;
     }
@@ -194,7 +210,9 @@ static double raw_estimate(hll_t *h, int *num_zero) {
  * Estimates cardinality using a linear counting.
  * Used when some registers still have a zero value.
  */
-static double linear_count(hll_t *h, int num_zero) {
+static double linear_count(hll_t *hu, int num_zero) {
+    assert(hu->type == NORMAL);
+    hll_t_normal *h = &(hu->normal);
     int registers = NUM_REG(h->precision);
     return registers *
         log((double)registers / (double)num_zero);
@@ -224,7 +242,9 @@ static int binary_search(double val, int num, const double *array) {
  * empircal data collected by Google, from the
  * paper mentioned above.
  */
-static double bias_estimate(hll_t *h, double raw_est) {
+static double bias_estimate(hll_t *hu, double raw_est) {
+    assert(hu->type == NORMAL);
+    hll_t_normal *h = &(hu->normal);
     // Determine the samples available
     int samples;
     int precision = h->precision;
@@ -259,20 +279,22 @@ static double bias_estimate(hll_t *h, double raw_est) {
  * @arg h The hll to query
  * @return An estimate of the cardinality
  */
-double hll_size(hll_t *h) {
+double hll_size(hll_t *hu) {
+    assert(hu->type == NORMAL);
+    hll_t_normal *h = &(hu->normal);
     int num_zero = 0;
-    double raw_est = raw_estimate(h, &num_zero);
+    double raw_est = raw_estimate(hu, &num_zero);
 
     // Check if we need to apply bias correction
     int num_reg = NUM_REG(h->precision);
     if (raw_est <= 5 * num_reg) {
-        raw_est -= bias_estimate(h, raw_est);
+        raw_est -= bias_estimate(hu, raw_est);
     }
 
     // Check if linear counting should be used
     double alt_est;
     if (num_zero) {
-        alt_est = linear_count(h, num_zero);
+        alt_est = linear_count(hu, num_zero);
     } else {
         alt_est = raw_est;
     }

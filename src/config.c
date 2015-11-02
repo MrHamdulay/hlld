@@ -29,7 +29,9 @@ static const hlld_config DEFAULT_CONFIG = {
     3600,               // Cold after an hour
     0,                  // Persist to disk by default
     1,                  // Only a single worker thread by default
-    0                   // Do NOT use mmap by default
+    0,                  // Do NOT use mmap by default
+    0,                  // By default do not use sliding hyper
+    0                   // By default do not use sliding hyper
 };
 
 /**
