@@ -144,7 +144,11 @@ void hll_add(hll_t *h, char *key) {
     MurmurHash3_x64_128(key, strlen(key), 0, &out);
 
     // Add the hashed value
-    hll_add_hash(h, out[1]);
+    if (h->type == NORMAL) {
+        hll_add_hash(h, out[1]);
+    } else {
+        shll_add_hash(h, out[1]);
+    }
 }
 
 /**

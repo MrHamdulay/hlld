@@ -4,6 +4,8 @@
 #define NUM_REG(precision) ((1 << precision))
 #define INT_CEIL(num, denom) (((num) + (denom) - 1) / (denom))
 
+#define GROWTH_FACTOR 1.5
+
 
 /**
  * Initializes a new SHLL
@@ -39,6 +41,8 @@ int shll_init(unsigned char precision, int window_period, int window_precision, 
 int shll_destroy(hll_t *hy) {
     assert(hy->type == SLIDING);
     free(hy->sliding.registers);
+    hy->sliding.registers = NULL;
+    return 0;
 }
 
 /**
@@ -46,4 +50,60 @@ int shll_destroy(hll_t *hy) {
  * @arg h The hll to add to
  * @arg hash The hash to add
  */
-void shll_add_hash(hll_t *h, uint64_t hash);
+void shll_add_hash(hll_t *hy, uint64_t hash) {
+    assert(hy->type == SLIDING);
+    shll_t *h = &(hy->sliding);
+
+    // Determine the index using the first p bits
+    int idx = hash >> (64 - h->precision);
+
+    // Shift out the index bits
+    hash = hash << h->precision | (1 << (h->precision -1));
+
+    // Determine the count of leading zeros
+    int leading = __builtin_clzll(hash) + 1;
+
+    shll_point p = {time(NULL), leading};
+    shll_register *r = &h->registers[idx];
+
+    shll_register_add_point(r, p);
+}
+
+/**
+ * Remove a point from a register
+ * @arg r register to remove
+ * @arg idx index of the point to remove
+ */
+void shll_register_remove_point(shll_register *r, size_t idx) {
+    r->size--;
+    r->points[idx] = r->points[r->size];
+
+    // TODO shrink array when below a certain bound
+}
+
+/**
+ * Adds a time/leading point to a register
+ * @arg r The register to add the point to
+ * @arg p The time/leading point to add to the register
+ */
+void shll_register_add_point(shll_t *h, shll_register *r, shll_point p) {
+    // remove all points with smaller register value or that have expired.
+    time_t max_time = p.timestamp - h->window_period;
+    for (size_t i=0; i<r->size; i++) {
+        if (r->points[i].register_ <= p.register_ ||
+            r->points[i].timestamp < max_time) {
+            shll_register_remove_point(r, i);
+        }
+    }
+
+    r->size++;
+
+    // if we have exceeded capacity we resize
+    if(r->size > r->capacity) {
+        r->capacity = (size_t)(GROWTH_FACTOR * r->capacity + 1);
+        realloc(r->points, r->capacity);
+    }
+
+    // add point to register
+    r->points[r->size-1] = p;
+}

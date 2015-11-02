@@ -4,26 +4,6 @@
 #include <time.h>
 #include "hll.h"
 
-typedef struct {
-    time_t timestamp;
-    uint32_t register_;
-} shll_point;
-
-typedef struct {
-    size_t size;
-    size_t capacity;
-    shll_point *points;
-} shll_register;
-
-typedef struct {
-    // amount of seconds worth of samples we store (in seconds)
-    int window_period;
-    // precision to which we keep samples (in seconds)
-    int window_precision;
-    unsigned char precision;
-    shll_register *registers;
-} shll_t;
-
 /**
  * Initializes a new SHLL
  * @arg precision The digits of precision to use
@@ -52,4 +32,11 @@ void shll_add_hash(hll_t *h, uint64_t hash);
  * @return An estimate of the cardinality
  */
 double shll_size(hll_t *h);
+
+/**
+ * Adds a time/leading point to a register
+ * @arg r The register to add the point to
+ * @arg p The time/leading point to add to the register
+ */
+void shll_register_add_point(shll_t *h, shll_register *r, shll_point p);
 #endif

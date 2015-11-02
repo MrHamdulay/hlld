@@ -18,6 +18,27 @@ typedef struct {
 typedef enum { NORMAL, SLIDING } hll_type;
 
 typedef struct {
+    time_t timestamp;
+    uint32_t register_;
+} shll_point;
+
+typedef struct {
+    size_t size;
+    size_t capacity;
+    shll_point *points;
+} shll_register;
+
+typedef struct {
+    // amount of seconds worth of samples we store (in seconds)
+    int window_period;
+    // precision to which we keep samples (in seconds)
+    int window_precision;
+    unsigned char precision;
+    shll_register *registers;
+} shll_t;
+
+
+typedef struct {
     hll_type type;
     union {
         hll_t_normal normal;
