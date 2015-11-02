@@ -3,6 +3,7 @@
 #include <syslog.h>
 #include "test_config.c"
 #include "test_hll.c"
+#include "test_shll.c"
 #include "test_bitmap.c"
 #include "test_set.c"
 #include "test_setmgr.c"
@@ -15,10 +16,11 @@ int main(void)
     Suite *s1 = suite_create("hlld");
     TCase *tc1 = tcase_create("config");
     TCase *tc3 = tcase_create("bitmap");
-    TCase *tc4 = tcase_create("hll");
+    TCase *tc4 = tcase_create("shll");
     TCase *tc5 = tcase_create("set");
     TCase *tc6 = tcase_create("manager");
     TCase *tc7 = tcase_create("art");
+    TCase *tc8 = tcase_create("hll");
     SRunner *sr = srunner_create(s1);
     int nf;
 
@@ -122,6 +124,11 @@ int main(void)
     tcase_add_test(tc7, test_art_insert_iter);
     tcase_add_test(tc7, test_art_iter_prefix);
     tcase_add_test(tc7, test_art_insert_copy_delete);
+
+    suite_add_tcase(s1, tc8);
+    tcase_set_timeout(tc8, 3);
+    tcase_add_test(tc8, test_shll_init_and_destroy);
+    tcase_add_test(tc8, test_shll_add_hash);
 
     srunner_run_all(sr, CK_ENV);
     nf = srunner_ntests_failed(sr);

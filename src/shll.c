@@ -66,7 +66,7 @@ void shll_add_hash(hll_t *hy, uint64_t hash) {
     shll_point p = {time(NULL), leading};
     shll_register *r = &h->registers[idx];
 
-    shll_register_add_point(r, p);
+    shll_register_add_point(&hy->sliding, r, p);
 }
 
 /**
