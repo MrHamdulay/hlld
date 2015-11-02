@@ -20,6 +20,8 @@ typedef struct {
     int in_memory;
     int worker_threads;
     int use_mmap;
+    int sliding_period;
+    int sliding_precision;
 } hlld_config;
 
 /**

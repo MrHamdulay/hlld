@@ -101,7 +101,11 @@ static int config_callback(void* user, const char* section, const char* name, co
 #define NAME_MATCH(param) (strcasecmp(param, name) == 0)
 
     // Handle the int cases
-    if (NAME_MATCH("port")) {
+    if (NAME_MATCH("sliding_period")) {
+        return value_to_int(value, &config->sliding_period);
+    } else if (NAME_MATCH("sliding_precision")) {
+        return value_to_int(value, &config->sliding_precision);
+    } else if (NAME_MATCH("port")) {
         return value_to_int(value, &config->tcp_port);
     } else if (NAME_MATCH("tcp_port")) {
         return value_to_int(value, &config->tcp_port);
