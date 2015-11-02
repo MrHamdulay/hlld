@@ -8,6 +8,7 @@ State of The Art Cardinality Estimation Algorithm"
  * a dense representation and avoid the sparse/dense conversions.
  *
  */
+#include <syslog.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <math.h>
@@ -69,7 +70,7 @@ int hll_init(unsigned char precision, hll_t *h) {
  */
 int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *hu) {
     // Ensure the precision is somewhat sane
-    if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION || hu->type == NORMAL)
+    if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION || hu->type != NORMAL)
         return -1;
 
     // Check the bitmap size
