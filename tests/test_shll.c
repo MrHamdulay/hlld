@@ -88,6 +88,7 @@ START_TEST(test_shll_shrink_register)
     shll_point p = {200, 1};
     shll_register_add_point(&h.sliding, r, p);
     fail_unless(r->size == 1);
+    // check that capacity was reduced appropriately
     fail_unless(r->size*1.5*1.5+1 >= r->capacity);
 
     // add all back and check bounds on capacity

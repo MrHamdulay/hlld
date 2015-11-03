@@ -39,4 +39,7 @@ double shll_size(hll_t *h);
  * @arg p The time/leading point to add to the register
  */
 void shll_register_add_point(shll_t *h, shll_register *r, shll_point p);
+
+int shll_get_register(hll_t *h, int register_index, int time_length, time_t current_time);
+
 #endif

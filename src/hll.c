@@ -112,7 +112,7 @@ int hll_destroy(hll_t *hu) {
     return 0;
 }
 
-static int get_register(hll_t *hu, int idx) {
+static int hll_get_register(hll_t *hu, int idx) {
     assert(hu->type == NORMAL);
     hll_t_normal *h = &(hu->normal);
     uint32_t word = *(h->registers + (idx / REG_PER_WORD));
@@ -120,7 +120,7 @@ static int get_register(hll_t *hu, int idx) {
     return word & ((1 << REG_WIDTH) - 1);
 }
 
-static void set_register(hll_t *hu, int idx, int val) {
+static void hll_set_register(hll_t *hu, int idx, int val) {
     assert(hu->type == NORMAL);
     hll_t_normal *h = &(hu->normal);
     uint32_t *word = h->registers + (idx / REG_PER_WORD);
@@ -171,7 +171,7 @@ void hll_add_hash(hll_t *hu, uint64_t hash) {
 
     // Update the register if the new value is larger
     if (leading > get_register(hu, idx)) {
-        set_register(hu, idx, leading);
+        hll_set_register(hu, idx, leading);
     }
 }
 
@@ -196,16 +196,23 @@ static double alpha(unsigned char precision) {
  * Computes the raw cardinality estimate
  */
 static double raw_estimate(hll_t *hu, int *num_zero) {
-    assert(hu->type == NORMAL);
-    hll_t_normal *h = &(hu->normal);
-    unsigned char precision = h->precision;
+    unsigned char precision;
+    if (hu->type == NORMAL) {
+        precision = hu->normal.precision;
+    } else {
+        precision = hu->sliding.precision;
+    }
     int num_reg = NUM_REG(precision);
     double multi = alpha(precision) * num_reg * num_reg;
 
     int reg_val;
     double inv_sum = 0;
     for (int i=0; i < num_reg; i++) {
-        reg_val = get_register(hu, i);
+        if (hu->type == NORMAL) {
+            reg_val = hll_get_register(hu, i);
+        } else {
+            reg_val = shll_get_register(hu, i);
+        }
         inv_sum += pow(2.0, -1 * reg_val);
         if (!reg_val) *num_zero += 1;
     }

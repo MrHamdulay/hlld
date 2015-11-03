@@ -124,3 +124,20 @@ void shll_register_add_point(shll_t *h, shll_register *r, shll_point p) {
     // add point to register
     r->points[r->size-1] = p;
 }
+
+int shll_get_register(hll_t *h, int register_index, int time_length, time_t current_time) {
+    assert(h->type == SLIDING);
+    assert(register_index < NUM_REG(h->sliding.precision) && register_index >= 0);
+    shll_register *r = &h->sliding.registers[register_index];
+
+    time_t min_time = current_time - time_length;
+    int register_value = 0;
+
+    for(size_t i=0; i<r->size; i++) {
+        if (r->points[i].timestamp > min_time && r->points[i].register_ > register_value) {
+            register_value = r->points[i].register_;
+        }
+    }
+
+    return register_value;
+}
