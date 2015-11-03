@@ -131,6 +131,9 @@ int main(void)
     tcase_add_test(tc8, test_shll_add_register);
     tcase_add_test(tc8, test_shll_add_hash);
     tcase_add_test(tc8, test_shll_remove_smaller);
+    tcase_add_test(tc8, test_shll_remove_time);
+    tcase_add_test(tc8, test_shll_shrink_register);
+
 
     srunner_run_all(sr, CK_ENV);
     nf = srunner_ntests_failed(sr);

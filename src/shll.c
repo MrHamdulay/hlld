@@ -86,7 +86,12 @@ void shll_register_remove_point(shll_register *r, size_t idx) {
     assert(r->size >= 0);
     r->points[idx] = r->points[r->size];
 
-    // TODO shrink array when below a certain bound
+    // shrink array when below a certain bound
+    if (r->size*GROWTH_FACTOR*GROWTH_FACTOR < r->capacity) {
+        r->capacity = r->capacity/GROWTH_FACTOR+1;
+        assert(r->capacity > r->size);
+        r->points = realloc(r->points, r->capacity*sizeof(shll_point));
+    }
 }
 
 /**
@@ -100,7 +105,7 @@ void shll_register_add_point(shll_t *h, shll_register *r, shll_point p) {
     // do this in reverse order because we remove points from the right end
     for (int i=r->size-1; i>=0; i--) {
         if (r->points[i].register_ <= p.register_ ||
-            r->points[i].timestamp < max_time) {
+            r->points[i].timestamp <= max_time) {
             shll_register_remove_point(r, i);
         }
     }
