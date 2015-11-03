@@ -70,9 +70,10 @@ int hll_init(unsigned char precision, hll_t *h) {
  */
 int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *hu) {
     // Ensure the precision is somewhat sane
-    if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION || hu->type != NORMAL)
+    if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION)
         return -1;
 
+    hu->type = NORMAL;
     // Check the bitmap size
     if (hll_bytes_for_precision(precision) != bm->size)
         return -1;

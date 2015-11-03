@@ -128,7 +128,9 @@ int main(void)
     suite_add_tcase(s1, tc8);
     tcase_set_timeout(tc8, 3);
     tcase_add_test(tc8, test_shll_init_and_destroy);
+    tcase_add_test(tc8, test_shll_add_register);
     tcase_add_test(tc8, test_shll_add_hash);
+    tcase_add_test(tc8, test_shll_remove_smaller);
 
     srunner_run_all(sr, CK_ENV);
     nf = srunner_ntests_failed(sr);

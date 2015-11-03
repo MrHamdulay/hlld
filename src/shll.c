@@ -1,4 +1,6 @@
 #include <assert.h>
+#include <syslog.h>
+#include <stdio.h>
 #include "shll.h"
 
 #define NUM_REG(precision) ((1 << precision))
@@ -40,6 +42,11 @@ int shll_init(unsigned char precision, int window_period, int window_precision, 
  */
 int shll_destroy(hll_t *hy) {
     assert(hy->type == SLIDING);
+    for(int i=0; i<NUM_REG(hy->sliding.precision); i++) {
+        if(hy->sliding.registers[i].points != NULL) {
+            free(hy->sliding.registers[i].points);
+        }
+    }
     free(hy->sliding.registers);
     hy->sliding.registers = NULL;
     return 0;
@@ -76,6 +83,7 @@ void shll_add_hash(hll_t *hy, uint64_t hash) {
  */
 void shll_register_remove_point(shll_register *r, size_t idx) {
     r->size--;
+    assert(r->size >= 0);
     r->points[idx] = r->points[r->size];
 
     // TODO shrink array when below a certain bound
@@ -89,7 +97,8 @@ void shll_register_remove_point(shll_register *r, size_t idx) {
 void shll_register_add_point(shll_t *h, shll_register *r, shll_point p) {
     // remove all points with smaller register value or that have expired.
     time_t max_time = p.timestamp - h->window_period;
-    for (size_t i=0; i<r->size; i++) {
+    // do this in reverse order because we remove points from the right end
+    for (int i=r->size-1; i>=0; i--) {
         if (r->points[i].register_ <= p.register_ ||
             r->points[i].timestamp < max_time) {
             shll_register_remove_point(r, i);
@@ -100,10 +109,13 @@ void shll_register_add_point(shll_t *h, shll_register *r, shll_point p) {
 
     // if we have exceeded capacity we resize
     if(r->size > r->capacity) {
+
         r->capacity = (size_t)(GROWTH_FACTOR * r->capacity + 1);
-        realloc(r->points, r->capacity);
+        r->points = realloc(r->points, r->capacity*sizeof(shll_point));
     }
 
+    assert((long long)r->size-1 >= 0);
+    assert(r->points != NULL);
     // add point to register
     r->points[r->size-1] = p;
 }
