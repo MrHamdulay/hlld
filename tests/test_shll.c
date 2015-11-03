@@ -14,6 +14,7 @@ START_TEST(test_shll_add_register)
     hll_t h;
     fail_unless(shll_init(10, 100, 1, &h) == 0);
     shll_point p = {100, 3};
+    fail_unless(h.precision == 10);
     shll_register_add_point(&h.sliding, &h.sliding.registers[0], p);
     fail_unless(h.sliding.registers[0].size == 1);
 
@@ -119,8 +120,32 @@ START_TEST(test_shll_error_bound)
 
     // Should be within 1%
     double s = shll_size(&h, 100, time(NULL));
+    printf("size is %f\n", s);
     fail_unless(s > 9900 && s < 10100);
 
-    fail_unless(hll_destroy(&h) == 0);
+    fail_unless(shll_destroy(&h) == 0);
+}
+END_TEST
+
+
+START_TEST(test_shll_time_queries)
+{
+    // Precision 14 -> variance of 1%
+    hll_t h;
+    fail_unless(shll_init(14, 100, 1, &h) == 0);
+
+    char buf[100];
+    for (int i=0; i < 90000; i++) {
+        fail_unless(sprintf((char*)&buf, "test%d", i));
+        shll_add_at_time(&h, (char*)&buf, i/10000);
+    }
+
+    // Should be within 1'ish%
+    for(int i=0; i<9; i++) {
+        double s = shll_size(&h, i+2, 9);
+        fail_unless(s > 9900*(i+1)-100 && s < 10100*(i+1)+100);
+    }
+
+    fail_unless(shll_destroy(&h) == 0);
 }
 END_TEST

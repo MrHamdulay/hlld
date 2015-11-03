@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <syslog.h>
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 #include "shll.h"
 #include "hll.h"
@@ -10,6 +11,8 @@
 #define INT_CEIL(num, denom) (((num) + (denom) - 1) / (denom))
 
 #define GROWTH_FACTOR 1.5
+
+extern void MurmurHash3_x64_128(const void * key, const int len, const uint32_t seed, void *out);
 
 
 /**
@@ -56,11 +59,29 @@ int shll_destroy(hll_t *hy) {
 }
 
 /**
+ * Adds a new key to the SHLL
+ * @arg h The hll to add to
+ * @arg key The key to add
+ */
+void shll_add_at_time(hll_t *h, char *key, time_t time) {
+    // Compute the hash value of the key
+    uint64_t out[2];
+    MurmurHash3_x64_128(key, strlen(key), 0, &out);
+
+    // Add the hashed value
+    shll_add_hash_at_time(h, out[1], time);
+}
+
+void shll_add_hash(hll_t *hy, uint64_t hash) {
+    shll_add_hash_at_time(hy, hash, time(NULL));
+}
+
+/**
  * Adds a new hash to the SHLL
  * @arg h The hll to add to
  * @arg hash The hash to add
  */
-void shll_add_hash(hll_t *hy, uint64_t hash) {
+void shll_add_hash_at_time(hll_t *hy, uint64_t hash, time_t time_added) {
     assert(hy->type == SLIDING);
     shll_t *h = &(hy->sliding);
 
@@ -73,8 +94,7 @@ void shll_add_hash(hll_t *hy, uint64_t hash) {
     // Determine the count of leading zeros
     int leading = __builtin_clzll(hash) + 1;
 
-    // TODO we probably shouldn't take current time here, it should be passed in. Shouldn't it?
-    shll_point p = {time(NULL), leading};
+    shll_point p = {time_added, leading};
     shll_register *r = &h->registers[idx];
 
     shll_register_add_point(&hy->sliding, r, p);

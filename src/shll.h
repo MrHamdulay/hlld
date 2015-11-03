@@ -25,7 +25,8 @@ int shll_destroy(hll_t *hy);
  * @arg hash The hash to add
  */
 void shll_add_hash(hll_t *h, uint64_t hash);
-
+void shll_add_hash_at_time(hll_t *h, uint64_t hash, time_t time);
+void shll_add_at_time(hll_t *h, char *key, time_t time);
 /**
  * Estimates the cardinality of the SHLL
  * @arg h The hll to query
