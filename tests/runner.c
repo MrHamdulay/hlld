@@ -133,6 +133,7 @@ int main(void)
     tcase_add_test(tc8, test_shll_remove_smaller);
     tcase_add_test(tc8, test_shll_remove_time);
     tcase_add_test(tc8, test_shll_shrink_register);
+    tcase_add_test(tc8, test_shll_error_bound);
 
 
     srunner_run_all(sr, CK_ENV);

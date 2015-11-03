@@ -103,3 +103,24 @@ START_TEST(test_shll_shrink_register)
     fail_unless(shll_destroy(&h) == 0);
 }
 END_TEST
+
+
+START_TEST(test_shll_error_bound)
+{
+    // Precision 14 -> variance of 1%
+    hll_t h;
+    fail_unless(shll_init(14, 100, 1, &h) == 0);
+
+    char buf[100];
+    for (int i=0; i < 10000; i++) {
+        fail_unless(sprintf((char*)&buf, "test%d", i));
+        hll_add(&h, (char*)&buf);
+    }
+
+    // Should be within 1%
+    double s = shll_size(&h, 100, time(NULL));
+    fail_unless(s > 9900 && s < 10100);
+
+    fail_unless(hll_destroy(&h) == 0);
+}
+END_TEST

@@ -10,7 +10,6 @@
 #define HLL_MAX_PRECISION 18     // 262,144 registers
 
 typedef struct {
-    unsigned char precision;
     uint32_t *registers;
     hlld_bitmap *bm;
 } hll_t_normal;
@@ -19,7 +18,7 @@ typedef enum { NORMAL, SLIDING } hll_type;
 
 typedef struct {
     time_t timestamp;
-    uint32_t register_;
+    int register_;
 } shll_point;
 
 typedef struct {
@@ -33,12 +32,12 @@ typedef struct {
     int window_period;
     // precision to which we keep samples (in seconds)
     int window_precision;
-    unsigned char precision;
     shll_register *registers;
 } shll_t;
 
 
 typedef struct {
+    unsigned char precision;
     hll_type type;
     union {
         hll_t_normal normal;
@@ -115,5 +114,30 @@ double hll_error_for_precision(int prec);
  * @return The bytes required or 0 on error.
  */
 uint64_t hll_bytes_for_precision(int prec);
+
+/*
+ * Returns the bias correctors from the
+ * hyperloglog paper
+ */
+double hll_alpha(unsigned char precision);
+
+/*
+ * Estimates cardinality using a linear counting.
+ * Used when some registers still have a zero value.
+ */
+double hll_linear_count(hll_t *hu, int num_zero);
+
+/**
+ * Binary searches for the nearest matching index
+ * @return The matching index, or closest match
+ */
+int binary_search(double val, int num, const double *array);
+
+/**
+ * Interpolates the bias estimate using the
+ * empircal data collected by Google, from the
+ * paper mentioned above.
+ */
+double hll_bias_estimate(hll_t *hu, double raw_est);
 
 #endif

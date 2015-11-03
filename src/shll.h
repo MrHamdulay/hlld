@@ -31,7 +31,7 @@ void shll_add_hash(hll_t *h, uint64_t hash);
  * @arg h The hll to query
  * @return An estimate of the cardinality
  */
-double shll_size(hll_t *h);
+double shll_size(hll_t *h, int time_length, time_t current_time);
 
 /**
  * Adds a time/leading point to a register

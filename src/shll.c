@@ -1,7 +1,10 @@
 #include <assert.h>
 #include <syslog.h>
 #include <stdio.h>
+#include <math.h>
 #include "shll.h"
+#include "hll.h"
+#include "hll_constants.h"
 
 #define NUM_REG(precision) ((1 << precision))
 #define INT_CEIL(num, denom) (((num) + (denom) - 1) / (denom))
@@ -24,7 +27,7 @@ int shll_init(unsigned char precision, int window_period, int window_precision, 
     shll_t *h = &(hy->sliding);
 
     // Store parameters
-    h->precision = precision;
+    hy->precision = precision;
     h->window_period = window_period;
     h->window_precision = window_precision;
 
@@ -42,7 +45,7 @@ int shll_init(unsigned char precision, int window_period, int window_precision, 
  */
 int shll_destroy(hll_t *hy) {
     assert(hy->type == SLIDING);
-    for(int i=0; i<NUM_REG(hy->sliding.precision); i++) {
+    for(int i=0; i<NUM_REG(hy->precision); i++) {
         if(hy->sliding.registers[i].points != NULL) {
             free(hy->sliding.registers[i].points);
         }
@@ -62,14 +65,15 @@ void shll_add_hash(hll_t *hy, uint64_t hash) {
     shll_t *h = &(hy->sliding);
 
     // Determine the index using the first p bits
-    int idx = hash >> (64 - h->precision);
+    int idx = hash >> (64 - hy->precision);
 
     // Shift out the index bits
-    hash = hash << h->precision | (1 << (h->precision -1));
+    hash = hash << hy->precision | (1 << (hy->precision -1));
 
     // Determine the count of leading zeros
     int leading = __builtin_clzll(hash) + 1;
 
+    // TODO we probably shouldn't take current time here, it should be passed in. Shouldn't it?
     shll_point p = {time(NULL), leading};
     shll_register *r = &h->registers[idx];
 
@@ -127,7 +131,7 @@ void shll_register_add_point(shll_t *h, shll_register *r, shll_point p) {
 
 int shll_get_register(hll_t *h, int register_index, int time_length, time_t current_time) {
     assert(h->type == SLIDING);
-    assert(register_index < NUM_REG(h->sliding.precision) && register_index >= 0);
+    assert(register_index < NUM_REG(h->precision) && register_index >= 0);
     shll_register *r = &h->sliding.registers[register_index];
 
     time_t min_time = current_time - time_length;
@@ -140,4 +144,55 @@ int shll_get_register(hll_t *h, int register_index, int time_length, time_t curr
     }
 
     return register_value;
+}
+
+/*
+ * Computes the raw cardinality estimate
+ */
+static double shll_raw_estimate(hll_t *hu, int *num_zero, int time_length, time_t current_time) {
+    assert(hu->type == SLIDING);
+    unsigned char precision = hu->precision;
+    int num_reg = NUM_REG(precision);
+    double multi = hll_alpha(precision) * num_reg * num_reg;
+
+    int reg_val;
+    double inv_sum = 0;
+    for (int i=0; i < num_reg; i++) {
+        reg_val = shll_get_register(hu, i, time_length, current_time);
+        inv_sum += pow(2.0, -1 * reg_val);
+        if (!reg_val) *num_zero += 1;
+    }
+    return multi * (1.0 / inv_sum);
+}
+
+/**
+ * Estimates the cardinality of the HLL
+ * @arg h The hll to query
+ * @return An estimate of the cardinality
+ */
+double shll_size(hll_t *hu, int time_length, time_t current_time) {
+    assert(hu->type == SLIDING);
+    int num_zero = 0;
+    double raw_est = shll_raw_estimate(hu, &num_zero, time_length, current_time);
+
+    // Check if we need to apply bias correction
+    int num_reg = NUM_REG(hu->precision);
+    if (raw_est <= 5 * num_reg) {
+        raw_est -= hll_bias_estimate(hu, raw_est);
+    }
+
+    // Check if linear counting should be used
+    double alt_est;
+    if (num_zero) {
+        alt_est = hll_linear_count(hu, num_zero);
+    } else {
+        alt_est = raw_est;
+    }
+
+    // Determine which estimate to use
+    if (alt_est <= switchThreshold[hu->precision-4]) {
+        return alt_est;
+    } else {
+        return raw_est;
+    }
 }

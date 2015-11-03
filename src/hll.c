@@ -45,7 +45,7 @@ int hll_init(unsigned char precision, hll_t *h) {
     hll_t_normal *hn = &(h->normal);
 
     // Store precision
-    hn->precision = precision;
+    h->precision = precision;
 
     // Determine how many registers are needed
     int reg = NUM_REG(precision);
@@ -81,7 +81,7 @@ int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *hu) {
     hll_t_normal *h = &(hu->normal);
 
     // Store precision
-    h->precision = precision;
+    hu->precision = precision;
 
     // Use the bitmap
     h->registers = (uint32_t*)bm->mmap;
@@ -159,18 +159,17 @@ void hll_add(hll_t *h, char *key) {
  */
 void hll_add_hash(hll_t *hu, uint64_t hash) {
     assert(hu->type == NORMAL);
-    hll_t_normal *h = &(hu->normal);
     // Determine the index using the first p bits
-    int idx = hash >> (64 - h->precision);
+    int idx = hash >> (64 - hu->precision);
 
     // Shift out the index bits
-    hash = hash << h->precision | (1 << (h->precision -1));
+    hash = hash << hu->precision | (1 << (hu->precision -1));
 
     // Determine the count of leading zeros
     int leading = __builtin_clzll(hash) + 1;
 
     // Update the register if the new value is larger
-    if (leading > get_register(hu, idx)) {
+    if (leading > hll_get_register(hu, idx)) {
         hll_set_register(hu, idx, leading);
     }
 }
@@ -179,7 +178,7 @@ void hll_add_hash(hll_t *hu, uint64_t hash) {
  * Returns the bias correctors from the
  * hyperloglog paper
  */
-static double alpha(unsigned char precision) {
+double hll_alpha(unsigned char precision) {
     switch (precision) {
         case 4:
             return 0.673;
@@ -195,24 +194,16 @@ static double alpha(unsigned char precision) {
 /*
  * Computes the raw cardinality estimate
  */
-static double raw_estimate(hll_t *hu, int *num_zero) {
-    unsigned char precision;
-    if (hu->type == NORMAL) {
-        precision = hu->normal.precision;
-    } else {
-        precision = hu->sliding.precision;
-    }
+static double hll_raw_estimate(hll_t *hu, int *num_zero) {
+    assert(hu->type == NORMAL);
+    unsigned char precision = hu->precision;
     int num_reg = NUM_REG(precision);
-    double multi = alpha(precision) * num_reg * num_reg;
+    double multi = hll_alpha(precision) * num_reg * num_reg;
 
     int reg_val;
     double inv_sum = 0;
     for (int i=0; i < num_reg; i++) {
-        if (hu->type == NORMAL) {
-            reg_val = hll_get_register(hu, i);
-        } else {
-            reg_val = shll_get_register(hu, i);
-        }
+        reg_val = hll_get_register(hu, i);
         inv_sum += pow(2.0, -1 * reg_val);
         if (!reg_val) *num_zero += 1;
     }
@@ -223,10 +214,8 @@ static double raw_estimate(hll_t *hu, int *num_zero) {
  * Estimates cardinality using a linear counting.
  * Used when some registers still have a zero value.
  */
-static double linear_count(hll_t *hu, int num_zero) {
-    assert(hu->type == NORMAL);
-    hll_t_normal *h = &(hu->normal);
-    int registers = NUM_REG(h->precision);
+double hll_linear_count(hll_t *hu, int num_zero) {
+    int registers = NUM_REG(hu->precision);
     return registers *
         log((double)registers / (double)num_zero);
 }
@@ -235,7 +224,7 @@ static double linear_count(hll_t *hu, int num_zero) {
  * Binary searches for the nearest matching index
  * @return The matching index, or closest match
  */
-static int binary_search(double val, int num, const double *array) {
+int binary_search(double val, int num, const double *array) {
     int low=0, mid, high=num-1;
     while (low < high) {
         mid = (low + high) / 2;
@@ -255,12 +244,10 @@ static int binary_search(double val, int num, const double *array) {
  * empircal data collected by Google, from the
  * paper mentioned above.
  */
-static double bias_estimate(hll_t *hu, double raw_est) {
-    assert(hu->type == NORMAL);
-    hll_t_normal *h = &(hu->normal);
+double hll_bias_estimate(hll_t *hu, double raw_est) {
     // Determine the samples available
     int samples;
-    int precision = h->precision;
+    int precision = hu->precision;
     switch (precision) {
         case 4:
             samples = 80;
@@ -294,26 +281,25 @@ static double bias_estimate(hll_t *hu, double raw_est) {
  */
 double hll_size(hll_t *hu) {
     assert(hu->type == NORMAL);
-    hll_t_normal *h = &(hu->normal);
     int num_zero = 0;
-    double raw_est = raw_estimate(hu, &num_zero);
+    double raw_est = hll_raw_estimate(hu, &num_zero);
 
     // Check if we need to apply bias correction
-    int num_reg = NUM_REG(h->precision);
+    int num_reg = NUM_REG(hu->precision);
     if (raw_est <= 5 * num_reg) {
-        raw_est -= bias_estimate(hu, raw_est);
+        raw_est -= hll_bias_estimate(hu, raw_est);
     }
 
     // Check if linear counting should be used
     double alt_est;
     if (num_zero) {
-        alt_est = linear_count(hu, num_zero);
+        alt_est = hll_linear_count(hu, num_zero);
     } else {
         alt_est = raw_est;
     }
 
     // Determine which estimate to use
-    if (alt_est <= switchThreshold[h->precision-4]) {
+    if (alt_est <= switchThreshold[hu->precision-4]) {
         return alt_est;
     } else {
         return raw_est;
