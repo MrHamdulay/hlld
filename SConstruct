@@ -12,6 +12,7 @@ env_without_unused_err = Environment(CCFLAGS = '-g -std=c99 -D_GNU_SOURCE -Wall 
 env_without_err = Environment(CCFLAGS = '-g -std=c99 -D_GNU_SOURCE -O2 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/')
 
 objs =  env_with_err.Object('src/config', 'src/config.c') + \
+        env_with_err.Object('src/convert', 'src/convert.c') + \
         env_with_err.Object('src/barrier', 'src/barrier.c') + \
         env_with_err.Object('src/hll', 'src/hll.c') + \
         env_with_err.Object('src/hll_constants', 'src/hll_constants.c') + \
