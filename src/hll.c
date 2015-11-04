@@ -160,7 +160,7 @@ int hll_get_register(hll_t *h, int register_index, int time_length, time_t curre
     time_t min_time = current_time - time_length;
     int register_value = 0;
 
-    for(size_t i=0; i<r->size; i++) {
+    for(long i=0; i<r->size; i++) {
         if (r->points[i].timestamp > min_time && r->points[i].register_ > register_value) {
             register_value = r->points[i].register_;
         }
@@ -390,13 +390,4 @@ double hll_size(hll_t *h, int time_length, time_t current_time) {
 double hll_size_total(hll_t *h) {
     time_t ctime = time(NULL);
     return hll_size(h, ctime, ctime);
-}
-
-int hll_serialize(hll_t *h, hll_serialize_t *s) {
-    return -1;
-}
-
-int hll_register_serialize(hll_t *h, hll_serialize_t *s) {
-    int num_reg = NUM_REG(h->precision);
-    return -1;
 }

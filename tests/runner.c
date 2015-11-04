@@ -8,6 +8,7 @@
 #include "test_set.c"
 #include "test_setmgr.c"
 #include "test_art.c"
+#include "test_serialize.c"
 
 int main(void)
 {
@@ -21,6 +22,7 @@ int main(void)
     TCase *tc6 = tcase_create("manager");
     TCase *tc7 = tcase_create("art");
     TCase *tc8 = tcase_create("hll");
+    TCase *tc9 = tcase_create("serialize");
     SRunner *sr = srunner_create(s1);
     int nf;
 
@@ -135,6 +137,11 @@ int main(void)
     tcase_add_test(tc8, test_shll_shrink_register);
     tcase_add_test(tc8, test_shll_error_bound);
     tcase_add_test(tc8, test_shll_time_queries);
+
+    suite_add_tcase(s1, tc9);
+    tcase_set_timeout(tc8, 3);
+    tcase_add_test(tc9, test_hll_serialize);
+    tcase_add_test(tc9, test_serialize_primitives);
 
 
     srunner_run_all(sr, CK_ENV);

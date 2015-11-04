@@ -19,6 +19,7 @@ objs =  env_with_err.Object('src/config', 'src/config.c') + \
         env_with_err.Object('src/bitmap', 'src/bitmap.c') + \
         env_with_err.Object('src/set', 'src/set.c') + \
         env_with_err.Object('src/set_manager', 'src/set_manager.c') + \
+        env_with_err.Object('src/serialize', 'src/serialize.c') + \
         env_without_err.Object('src/networking', 'src/networking.c') + \
         env_with_err.Object('src/conn_handler', 'src/conn_handler.c') + \
         env_with_err.Object('src/background', 'src/background.c') + \
