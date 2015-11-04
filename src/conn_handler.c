@@ -5,6 +5,7 @@
 #include <assert.h>
 #include "hll.h"
 #include "conn_handler.h"
+#include "convert.h"
 #include "handler_constants.c"
 
 /**
@@ -32,6 +33,7 @@ static void handle_clear_cmd(hlld_conn_handler *handle, char *args, int args_len
 static void handle_list_cmd(hlld_conn_handler *handle, char *args, int args_len);
 static void handle_info_cmd(hlld_conn_handler *handle, char *args, int args_len);
 static void handle_flush_cmd(hlld_conn_handler *handle, char *args, int args_len);
+static void handle_size_cmd(hlld_conn_handler *handle, char *args, int args_len);
 
 
 static inline void handle_set_cmd_resp(hlld_conn_handler *handle, int res);
@@ -107,6 +109,8 @@ int handle_client_connect(hlld_conn_handler *handle) {
             case FLUSH:
                 handle_flush_cmd(handle, arg_buf, arg_buf_len);
                 break;
+            case SIZE:
+                handle_size_cmd(handle, arg_buf, arg_buf_len);
             default:
                 handle_client_err(handle->conn, (char*)&CMD_NOT_SUP, CMD_NOT_SUP_LEN);
                 break;
@@ -155,6 +159,54 @@ static void handle_set_cmd(hlld_conn_handler *handle, char *args, int args_len) 
 
     // Generate the response
     handle_set_cmd_resp(handle, res);
+}
+
+/**
+ * Internal method to handle a command that returns the estimated size
+ * of a set given the sets key and the time window 
+ */
+static void handle_size_cmd(hlld_conn_handler *handle, char *args, int args_len) {
+    // If we have no args, complain.
+    if (!args) {
+        handle_client_err(handle->conn, (char*)&SET_NEEDED, SET_NEEDED_LEN);
+        return;
+    }
+
+    // Scan past the set name for the key
+    char *key;
+    int key_len;
+    int err = buffer_after_terminator(args, args_len, ' ', &key, &key_len);
+    if (err || key_len <= 1) {
+        handle_client_err(handle->conn, (char*)&SET_NEEDED, SET_NEEDED_LEN);
+        return;
+    }
+
+    // Scan for the time window
+    char *time_window_string;
+    int time_window_len;
+    err = buffer_after_terminator(args, args_len, ' ', &time_window_string, &time_window_len);
+    if (err || time_window_len <= 0) {
+        handle_client_err(handle->conn, (char*)&BAD_ARGS, BAD_ARGS_LEN);
+        return;
+    }
+
+    // Convert time window to an integer
+    uint64_t time_window;
+    err = value_to_int64(time_window_string, &time_window);
+    if (err || time_window <= 0) {
+        handle_client_err(handle->conn, (char*)&BAD_ARGS, BAD_ARGS_LEN);
+        return;
+    }
+
+    uint64_t estimate;
+    err = setmgr_set_size(handle->mgr, key, &estimate, time_window);
+    if (err) INTERNAL_ERROR();
+
+    char estimate_string[512];
+    int estimate_length = snprintf(estimate_string, 512, "size %lld", estimate);
+    if (estimate_length == -1) INTERNAL_ERROR();
+
+    handle_client_resp(handle->conn, estimate_string, estimate_length);
 }
 
 
@@ -372,7 +424,7 @@ static void list_set_cb(void *data, char *set_name, hlld_set *set) {
     // Use the last flush size, attempt to get the latest size.
     // We do this in-case a list is at the same time as a unmap/delete.
     uint64_t estimate = set->set_config.size;
-    setmgr_set_size(cb_data->mgr, set_name, &estimate);
+    setmgr_set_size_total(cb_data->mgr, set_name, &estimate);
 
     res = asprintf(cb_data->output, "%s %f %u %llu %llu\n",
             set_name,
@@ -442,7 +494,7 @@ static void info_set_cb(void *data, char *set_name, hlld_set *set) {
     // Use the last flush size, attempt to get the latest size.
     // We do this in-case a list is at the same time as a unmap/delete.
     uint64_t size = set->set_config.size;
-    setmgr_set_size(cb_data->mgr, set_name, &size);
+    setmgr_set_size_total(cb_data->mgr, set_name, &size);
 
     // Get some metrics
     set_counters *counters = hset_counters(set);
@@ -653,6 +705,8 @@ static conn_cmd_type determine_client_command(char *cmd_buf, int buf_len, char *
         case 's':
             if (CMD_MATCH("s") || CMD_MATCH("set"))
                 type = SET;
+            else if (CMD_MATCH("size"))
+                type = SIZE;
             break;
     }
     return type;

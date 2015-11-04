@@ -62,6 +62,7 @@ typedef enum {
     CLOSE,          // Close a set
     CLEAR,          // Clears a set from the internals
     FLUSH,          // Force flush a set
+    SIZE,           // Size of set
 } conn_cmd_type;
 
 /* Static regexes */

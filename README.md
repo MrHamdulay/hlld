@@ -186,6 +186,7 @@ There are a total of 9 commands:
 * bulk|b - Set many items in a set at once
 * info - Gets info about a set
 * flush - Flushes all sets or just a specified one
+* size - Returns the size of a set in a given time window
 
 For the ``create`` command, the format is::
 
@@ -246,6 +247,16 @@ to be set at once. Keys must be separated by a space:
 
 The bulk and set commands can also be called by their aliasses
 b and s respectively.
+
+The ``size`` command takes a set name and a time window in seconds, and
+returns the estimated size of the set over that window.
+An example query:
+
+    size set_name 10
+
+And an eample output:
+
+    300.1
 
 The ``info`` command takes a set name, and returns
 information about the set. Here is an example output:

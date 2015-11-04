@@ -369,7 +369,7 @@ int setmgr_set_keys(hlld_setmgr *mgr, char *set_name, char **keys, int num_keys)
  * @arg est Output pointer, the estimate on success.
  * @return 0 on success, -1 if the set does not exist.
  */
-int setmgr_set_size(hlld_setmgr *mgr, char *set_name, uint64_t *est) {
+int setmgr_set_size_total(hlld_setmgr *mgr, char *set_name, uint64_t *est) {
     // Get the set
     hlld_set_wrapper *set = take_set(mgr, set_name);
     if (!set) return -1;
@@ -379,7 +379,31 @@ int setmgr_set_size(hlld_setmgr *mgr, char *set_name, uint64_t *est) {
     pthread_rwlock_rdlock(&set->rwlock);
 
     // Get the size
-    *est = hset_size(set->set);
+    *est = hset_size_total(set->set);
+
+    // Release the lock
+    pthread_rwlock_unlock(&set->rwlock);
+    return 0;
+}
+
+/**
+ * Estimates the size of a set in a given time window
+ * @arg set_name The name of the set
+ * @arg est Output pointer, the estimate on success.
+ * @arg time_window Time window we query over
+ * @return 0 on success, -1 if the set does not exist.
+ */
+int setmgr_set_size(hlld_setmgr *mgr, char *set_name, uint64_t *est, uint64_t time_window) {
+    // Get the set
+    hlld_set_wrapper *set = take_set(mgr, set_name);
+    if (!set) return -1;
+
+    // Acquire the READ lock. We use the read lock
+    // since we can handle concurrent read/writes.
+    pthread_rwlock_rdlock(&set->rwlock);
+
+    // Get the size
+    *est = hset_size(set->set, time_window, time(NULL));
 
     // Release the lock
     pthread_rwlock_unlock(&set->rwlock);

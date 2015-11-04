@@ -460,7 +460,7 @@ START_TEST(test_mgr_clear_reload)
 
     // Try to check keys now
     uint64_t size;
-    res = setmgr_set_size(mgr, "zab9", &size);
+    res = setmgr_set_size_total(mgr, "zab9", &size);
     fail_unless(res == 0);
     fail_unless(size == 3);
 
@@ -577,7 +577,7 @@ START_TEST(test_mgr_unmap_in_mem)
 
     // Try to check keys now
     uint64_t size;
-    res = setmgr_set_size(mgr, "mem1", &size);
+    res = setmgr_set_size_total(mgr, "mem1", &size);
     fail_unless(res == 0);
     fail_unless(size == 3);
 
@@ -645,7 +645,7 @@ START_TEST(test_mgr_restore)
 
     // Try to check keys now
     uint64_t size;
-    res = setmgr_set_size(mgr, "zab8", &size);
+    res = setmgr_set_size_total(mgr, "zab8", &size);
     fail_unless(res == 0);
     fail_unless(size == 3);
 

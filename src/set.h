@@ -109,7 +109,8 @@ int hset_add(hlld_set *set, char *key);
  * @arg set The set to check
  * @return The estimated size of the set
  */
-uint64_t hset_size(hlld_set *set);
+uint64_t hset_size(hlld_set *set, uint64_t time_window, time_t current_time);
+uint64_t hset_size_total(hlld_set *set);
 
 /**
  * Gets the byte size of the set

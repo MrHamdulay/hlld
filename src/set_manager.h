@@ -81,7 +81,15 @@ int setmgr_set_keys(hlld_setmgr *mgr, char *set_name, char **keys, int num_keys)
  * @arg est Output pointer, the estimate on success.
  * @return 0 on success, -1 if the set does not exist.
  */
-int setmgr_set_size(hlld_setmgr *mgr, char *set_name, uint64_t *est);
+int setmgr_set_size(hlld_setmgr *mgr, char *set_name, uint64_t *est, uint64_t time_window);
+
+/**
+ * Estimates the total size of a set
+ * @arg set_name The name of the set
+ * @arg est Output pointer, the estimate on success.
+ * @return 0 on success, -1 if the set does not exist.
+ */
+int setmgr_set_size_total(hlld_setmgr *mgr, char *set_name, uint64_t *est);
 
 /**
  * Creates a new set of the given name and parameters.

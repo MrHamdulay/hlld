@@ -118,7 +118,7 @@ START_TEST(test_set_init_proxied)
 
     fail_unless(hset_is_proxied(set) == 1);
     fail_unless(hset_byte_size(set) == 3280);
-    fail_unless(hset_size(set) == 0);
+    fail_unless(hset_size_total(set) == 0);
 
     res = destroy_set(set);
     fail_unless(res == 0);
@@ -146,7 +146,7 @@ START_TEST(test_set_add)
         fail_unless(res == 0);
     }
 
-    fail_unless(hset_size(set) > 9800 && hset_size(set) < 10200);
+    fail_unless(hset_size_total(set) > 9800 && hset_size_total(set) < 10200);
     fail_unless(hset_byte_size(set) == 3280);
     fail_unless(counters->sets == 10000);
 
@@ -175,7 +175,7 @@ START_TEST(test_set_restore)
     }
 
     // Get the size
-    uint64_t size = hset_size(set);
+    uint64_t size = hset_size_total(set);
 
     // Destroy the set
     res = destroy_set(set);
@@ -186,7 +186,7 @@ START_TEST(test_set_restore)
     fail_unless(res == 0);
 
     // Re-check
-    fail_unless(hset_size(set) == size);
+    fail_unless(hset_size_total(set) == size);
     fail_unless(hset_byte_size(set) == 3280);
 
     res = destroy_set(set);
@@ -222,7 +222,7 @@ START_TEST(test_set_flush)
     fail_unless(res == 0);
 
     // Re-check
-    fail_unless(hset_size(set2) == hset_size(set));
+    fail_unless(hset_size_total(set2) == hset_size_total(set));
     fail_unless(hset_byte_size(set2) == hset_byte_size(set));
 
     // Destroy the set
@@ -256,7 +256,7 @@ START_TEST(test_set_add_in_mem)
         fail_unless(res == 0);
     }
 
-    fail_unless(hset_size(set) > 9800 && hset_size(set) < 10200);
+    fail_unless(hset_size_total(set) > 9800 && hset_size_total(set) < 10200);
     fail_unless(hset_byte_size(set) == 3280);
     fail_unless(counters->sets == 10000);
 
@@ -286,7 +286,7 @@ START_TEST(test_set_page_out)
         fail_unless(res == 0);
     }
 
-    uint64_t size = hset_size(set);
+    uint64_t size = hset_size_total(set);
     fail_unless(size > 9800 && size < 10200);
     fail_unless(hset_close(set) == 0);
     fail_unless(counters->page_outs == 1);
@@ -297,7 +297,7 @@ START_TEST(test_set_page_out)
     fail_unless(res == 0);
 
     // Check the size again
-    fail_unless(hset_size(set) == size);
+    fail_unless(hset_size_total(set) == size);
     fail_unless(counters->sets == 10001);
     fail_unless(counters->page_outs == 1);
     fail_unless(counters->page_ins == 1);

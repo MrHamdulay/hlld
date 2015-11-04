@@ -168,7 +168,7 @@ int hset_flush(hlld_set *set) {
         return 0;
 
     // Store our properties for a future unmap
-    set->set_config.size = hset_size(set);
+    set->set_config.size = hset_size_total(set);
 
     // Write out set_config
     char *config_name = join_path(set->full_path, (char*)CONFIG_FILENAME);
@@ -294,9 +294,17 @@ int hset_add(hlld_set *set, char *key) {
  * @arg set The set to check
  * @return The estimated size of the set
  */
-uint64_t hset_size(hlld_set *set) {
+uint64_t hset_size_total(hlld_set *set) {
     if (!set->is_proxied) {
         return hll_size_total(&set->hll);
+    } else {
+        return set->set_config.size;
+    }
+}
+
+uint64_t hset_size(hlld_set *set, uint64_t time_window, time_t current_time) {
+    if (!set->is_proxied) {
+        return hll_size(&set->hll, (int)time_window, current_time);
     } else {
         return set->set_config.size;
     }
