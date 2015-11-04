@@ -207,11 +207,7 @@ int hset_close(hlld_set *set) {
     // Only act if we are non-proxied
     if (!set->is_proxied) {
         hset_flush(set);
-        if (set->hll.type == NORMAL) {
-            hll_destroy(&set->hll);
-        } else {
-            syslog(LOG_ERR, "shll_destory not yet implemented");
-        }
+        hll_destroy(&set->hll);
         set->is_proxied = 1;
         set->counters.page_outs += 1;
     }
@@ -283,11 +279,7 @@ int hset_add(hlld_set *set, char *key) {
     // Add the hashed value and update the
     // counters
     LOCK_HLLD_SPIN(&set->hll_update);
-    if (set->hll.type == NORMAL) {
-        hll_add_hash(&set->hll, out[1]);
-    } else {
-        syslog(LOG_ERR, "shll_add_hash not implemented yet");
-    }
+    hll_add_hash(&set->hll, out[1]);
     set->counters.sets += 1;
     UNLOCK_HLLD_SPIN(&set->hll_update);
 
@@ -304,12 +296,7 @@ int hset_add(hlld_set *set, char *key) {
  */
 uint64_t hset_size(hlld_set *set) {
     if (!set->is_proxied) {
-        if (set->hll.type == NORMAL) {
-            return hll_size(&set->hll);
-        } else {
-            syslog(LOG_ERR, "shll_size not yet implemented");
-            return -1;
-        }
+        return hll_size_total(&set->hll);
     } else {
         return set->set_config.size;
     }
@@ -395,12 +382,8 @@ static int thread_safe_fault(hlld_set *s) {
 
 CREATE_HLL:
     // Create the HLL
-    if (s->hll.type == NORMAL) {
-        res = hll_init_from_bitmap(s->set_config.default_precision,
-                    &s->bm, &s->hll);
-    } else {
-        syslog(LOG_ERR, "shll_init_from_bitmap not implemented");
-    }
+    res = hll_init_from_bitmap(s->set_config.default_precision,
+                &s->bm, &s->hll);
 
     // Disable proxied
     if (!res)

@@ -1,6 +1,6 @@
 #include <stdint.h>
+#include <time.h>
 #include "bitmap.h"
-#include "shll.h"
 
 #ifndef HLL_H
 #define HLL_H
@@ -10,48 +10,33 @@
 #define HLL_MAX_PRECISION 18     // 262,144 registers
 
 typedef struct {
-    uint32_t *registers;
-    hlld_bitmap *bm;
-} hll_t_normal;
-
-typedef enum { NORMAL, SLIDING } hll_type;
-
-typedef struct {
     time_t timestamp;
     int register_;
-} shll_point;
+} hll_point;
 
 typedef struct {
     size_t size;
     size_t capacity;
-    shll_point *points;
-} shll_register;
+    hll_point *points;
+} hll_register;
 
 typedef struct {
+    unsigned char precision;
     // amount of seconds worth of samples we store (in seconds)
     int window_period;
     // precision to which we keep samples (in seconds)
     int window_precision;
-    shll_register *registers;
-} shll_t;
-
-
-typedef struct {
-    unsigned char precision;
-    hll_type type;
-    union {
-        hll_t_normal normal;
-        shll_t sliding;
-    };
+    hll_register *registers;
 } hll_t;
 
 /**
- * Initializes a new HLL
+ * Initializes a new SHLL
  * @arg precision The digits of precision to use
- * @arg h The HLL to initialize
- * @return 0 on success
+ * @arg window_period the length of time we store samples for
+ * @arg window_precision smallest amount of time we distinguish
+ * @arg h the SHLL to initialize
  */
-int hll_init(unsigned char precision, hll_t *h);
+int hll_init(unsigned char precision, int window_period, int window_precision, hll_t *h);
 
 /**
  * Initializes a new HLL from a bitmap
@@ -74,6 +59,7 @@ int hll_destroy(hll_t *h);
  * @arg key The key to add
  */
 void hll_add(hll_t *h, char *key);
+void hll_add_at_time(hll_t *h, char *key, time_t time);
 
 /**
  * Adds a new hash to the HLL
@@ -81,13 +67,15 @@ void hll_add(hll_t *h, char *key);
  * @arg hash The hash to add
  */
 void hll_add_hash(hll_t *h, uint64_t hash);
+void hll_add_hash_at_time(hll_t *h, uint64_t hash, time_t time);
 
 /**
  * Estimates the cardinality of the HLL
  * @arg h The hll to query
  * @return An estimate of the cardinality
  */
-double hll_size(hll_t *h);
+double hll_size(hll_t *h, int time_length, time_t current_time);
+double hll_size_total(hll_t *h);
 
 /**
  * Computes the minimum digits of precision
@@ -139,5 +127,14 @@ int binary_search(double val, int num, const double *array);
  * paper mentioned above.
  */
 double hll_bias_estimate(hll_t *hu, double raw_est);
+
+/**
+ * Adds a time/leading point to a register
+ * @arg r The register to add the point to
+ * @arg p The time/leading point to add to the register
+ */
+void hll_register_add_point(hll_t *h, hll_register *r, hll_point p);
+
+int hll_get_register(hll_t *h, int register_index, int time_length, time_t current_time);
 
 #endif

@@ -22,6 +22,7 @@ State of The Art Cardinality Estimation Algorithm"
 #define REG_WIDTH 6     // Bits per register
 #define INT_WIDTH 32    // Bits in an int
 #define REG_PER_WORD 5  // floor(INT_WIDTH / REG_WIDTH)
+#define GROWTH_FACTOR 1.5
 
 #define NUM_REG(precision) ((1 << precision))
 #define INT_CEIL(num, denom) (((num) + (denom) - 1) / (denom))
@@ -31,32 +32,26 @@ extern void MurmurHash3_x64_128(const void * key, const int len, const uint32_t 
 
 
 /**
- * Initializes a new HLL
+ * Initializes a new SHLL
  * @arg precision The digits of precision to use
- * @arg h The HLL to initialize
- * @return 0 on success
+ * @arg window_period the length of time we store samples for
+ * @arg window_precision smallest amount of time we distinguish
+ * @arg h the SHLL to initialize
  */
-int hll_init(unsigned char precision, hll_t *h) {
-    // Ensure the precision is somewhat sane
+int hll_init(unsigned char precision, int window_period, int window_precision, hll_t *h) {
     if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION)
         return -1;
 
-    h->type = NORMAL;
-    hll_t_normal *hn = &(h->normal);
-
-    // Store precision
+    // Store parameters
     h->precision = precision;
+    h->window_period = window_period;
+    h->window_precision = window_precision;
 
     // Determine how many registers are needed
     int reg = NUM_REG(precision);
 
-    // Get the full words required
-    int words = INT_CEIL(reg, REG_PER_WORD);
+    h->registers = calloc(reg, sizeof(hll_register));
 
-    // Allocate and zero out the registers
-    hn->bm = NULL;
-    hn->registers = calloc(words, sizeof(uint32_t));
-    if (!hn->registers) return -1;
     return 0;
 }
 
@@ -68,25 +63,8 @@ int hll_init(unsigned char precision, hll_t *h) {
  * @arg h The HLL to initialize
  * @return 0 on success
  */
-int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *hu) {
-    // Ensure the precision is somewhat sane
-    if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION)
-        return -1;
-
-    hu->type = NORMAL;
-    // Check the bitmap size
-    if (hll_bytes_for_precision(precision) != bm->size)
-        return -1;
-
-    hll_t_normal *h = &(hu->normal);
-
-    // Store precision
-    hu->precision = precision;
-
-    // Use the bitmap
-    h->registers = (uint32_t*)bm->mmap;
-    h->bm = bm;
-    return 0;
+int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *h) {
+    return -1*precision + (int)bm + (int)h;
 }
 
 
@@ -94,44 +72,15 @@ int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *hu) {
  * Destroys an hll. Closes the bitmap, but does not free it.
  * @return 0 on success
  */
-int hll_destroy(hll_t *hu) {
-    assert(hu->type == NORMAL);
-    hll_t_normal *h = &(hu->normal);
-    // Close the bitmap
-    if (h->bm) {
-        bitmap_close(h->bm);
-        h->bm = NULL;
-        h->registers = NULL;
-
-    // Destroy the registers if we allocated them
-    } else if (h->registers) {
-        free(h->registers);
-        h->registers = NULL;
+int hll_destroy(hll_t *h) {
+    for(int i=0; i<NUM_REG(h->precision); i++) {
+        if(h->registers[i].points != NULL) {
+            free(h->registers[i].points);
+        }
     }
-
+    free(h->registers);
+    h->registers = NULL;
     return 0;
-}
-
-static int hll_get_register(hll_t *hu, int idx) {
-    assert(hu->type == NORMAL);
-    hll_t_normal *h = &(hu->normal);
-    uint32_t word = *(h->registers + (idx / REG_PER_WORD));
-    word = word >> REG_WIDTH * (idx % REG_PER_WORD);
-    return word & ((1 << REG_WIDTH) - 1);
-}
-
-static void hll_set_register(hll_t *hu, int idx, int val) {
-    assert(hu->type == NORMAL);
-    hll_t_normal *h = &(hu->normal);
-    uint32_t *word = h->registers + (idx / REG_PER_WORD);
-
-    // Shift the val into place
-    unsigned shift = REG_WIDTH * (idx % REG_PER_WORD);
-    val = val << shift;
-    uint32_t val_mask = ((1 << REG_WIDTH) - 1) << shift;
-
-    // Store the word
-    *word = (*word & ~val_mask) | val;
 }
 
 /**
@@ -145,35 +94,124 @@ void hll_add(hll_t *h, char *key) {
     MurmurHash3_x64_128(key, strlen(key), 0, &out);
 
     // Add the hashed value
-    if (h->type == NORMAL) {
-        hll_add_hash(h, out[1]);
-    } else {
-        shll_add_hash(h, out[1]);
+    hll_add_hash(h, out[1]);
+}
+void hll_add_at_time(hll_t *h, char *key, time_t time) {
+    // Compute the hash value of the key
+    uint64_t out[2];
+    MurmurHash3_x64_128(key, strlen(key), 0, &out);
+
+    // Add the hashed value
+    hll_add_hash_at_time(h, out[1], time);
+}
+
+/**
+ * Remove a point from a register
+ * @arg r register to remove
+ * @arg idx index of the point to remove
+ */
+void hll_register_remove_point(hll_register *r, size_t idx) {
+    r->size--;
+    assert(r->size >= 0);
+    r->points[idx] = r->points[r->size];
+
+    // shrink array when below a certain bound
+    if (r->size*GROWTH_FACTOR*GROWTH_FACTOR < r->capacity) {
+        r->capacity = r->capacity/GROWTH_FACTOR+1;
+        assert(r->capacity > r->size);
+        r->points = realloc(r->points, r->capacity*sizeof(hll_point));
     }
 }
 
 /**
- * Adds a new hash to the HLL
+ * Adds a time/leading point to a register
+ * @arg r The register to add the point to
+ * @arg p The time/leading point to add to the register
+ */
+void hll_register_add_point(hll_t *h, hll_register *r, hll_point p) {
+    // remove all points with smaller register value or that have expired.
+    time_t max_time = p.timestamp - h->window_period;
+    // do this in reverse order because we remove points from the right end
+    for (int i=r->size-1; i>=0; i--) {
+        if (r->points[i].register_ <= p.register_ ||
+            r->points[i].timestamp <= max_time) {
+            hll_register_remove_point(r, i);
+        }
+    }
+
+    r->size++;
+
+    // if we have exceeded capacity we resize
+    if(r->size > r->capacity) {
+
+        r->capacity = (size_t)(GROWTH_FACTOR * r->capacity + 1);
+        r->points = realloc(r->points, r->capacity*sizeof(hll_point));
+    }
+
+    assert((long long)r->size-1 >= 0);
+    assert(r->points != NULL);
+    // add point to register
+    r->points[r->size-1] = p;
+}
+
+int hll_get_register(hll_t *h, int register_index, int time_length, time_t current_time) {
+    assert(register_index < NUM_REG(h->precision) && register_index >= 0);
+    hll_register *r = &h->registers[register_index];
+
+    time_t min_time = current_time - time_length;
+    int register_value = 0;
+
+    for(size_t i=0; i<r->size; i++) {
+        if (r->points[i].timestamp > min_time && r->points[i].register_ > register_value) {
+            register_value = r->points[i].register_;
+        }
+    }
+
+    return register_value;
+}
+
+void hll_add_hash(hll_t *hy, uint64_t hash) {
+    hll_add_hash_at_time(hy, hash, time(NULL));
+}
+
+/**
+ * Adds a new hash to the SHLL
  * @arg h The hll to add to
  * @arg hash The hash to add
  */
-void hll_add_hash(hll_t *hu, uint64_t hash) {
-    assert(hu->type == NORMAL);
+void hll_add_hash_at_time(hll_t *h, uint64_t hash, time_t time_added) {
     // Determine the index using the first p bits
-    int idx = hash >> (64 - hu->precision);
+    int idx = hash >> (64 - h->precision);
 
     // Shift out the index bits
-    hash = hash << hu->precision | (1 << (hu->precision -1));
+    hash = hash << h->precision | (1 << (h->precision -1));
 
     // Determine the count of leading zeros
     int leading = __builtin_clzll(hash) + 1;
 
-    // Update the register if the new value is larger
-    if (leading > hll_get_register(hu, idx)) {
-        hll_set_register(hu, idx, leading);
-    }
+    hll_point p = {time_added, leading};
+    hll_register *r = &h->registers[idx];
+
+    hll_register_add_point(h, r, p);
 }
 
+/*
+ * Computes the raw cardinality estimate
+ */
+static double hll_raw_estimate(hll_t *h, int *num_zero, int time_length, time_t current_time) {
+    unsigned char precision = h->precision;
+    int num_reg = NUM_REG(precision);
+    double multi = hll_alpha(precision) * num_reg * num_reg;
+
+    int reg_val;
+    double inv_sum = 0;
+    for (int i=0; i < num_reg; i++) {
+        reg_val = hll_get_register(h, i, time_length, current_time);
+        inv_sum += pow(2.0, -1 * reg_val);
+        if (!reg_val) *num_zero += 1;
+    }
+    return multi * (1.0 / inv_sum);
+}
 /*
  * Returns the bias correctors from the
  * hyperloglog paper
@@ -189,25 +227,6 @@ double hll_alpha(unsigned char precision) {
         default:
             return 0.7213 / (1 + 1.079 / NUM_REG(precision));
     }
-}
-
-/*
- * Computes the raw cardinality estimate
- */
-static double hll_raw_estimate(hll_t *hu, int *num_zero) {
-    assert(hu->type == NORMAL);
-    unsigned char precision = hu->precision;
-    int num_reg = NUM_REG(precision);
-    double multi = hll_alpha(precision) * num_reg * num_reg;
-
-    int reg_val;
-    double inv_sum = 0;
-    for (int i=0; i < num_reg; i++) {
-        reg_val = hll_get_register(hu, i);
-        inv_sum += pow(2.0, -1 * reg_val);
-        if (!reg_val) *num_zero += 1;
-    }
-    return multi * (1.0 / inv_sum);
 }
 
 /*
@@ -275,39 +294,6 @@ double hll_bias_estimate(hll_t *hu, double raw_est) {
 }
 
 /**
- * Estimates the cardinality of the HLL
- * @arg h The hll to query
- * @return An estimate of the cardinality
- */
-double hll_size(hll_t *hu) {
-    assert(hu->type == NORMAL);
-    int num_zero = 0;
-    double raw_est = hll_raw_estimate(hu, &num_zero);
-
-    // Check if we need to apply bias correction
-    int num_reg = NUM_REG(hu->precision);
-    if (raw_est <= 5 * num_reg) {
-        raw_est -= hll_bias_estimate(hu, raw_est);
-    }
-
-    // Check if linear counting should be used
-    double alt_est;
-    if (num_zero) {
-        alt_est = hll_linear_count(hu, num_zero);
-    } else {
-        alt_est = raw_est;
-    }
-
-    // Determine which estimate to use
-    if (alt_est <= switchThreshold[hu->precision-4]) {
-        return alt_est;
-    } else {
-        return raw_est;
-    }
-}
-
-
-/**
  * Computes the minimum number of registers
  * needed to hit a target error.
  * @arg error The target error rate
@@ -369,3 +355,38 @@ uint64_t hll_bytes_for_precision(int prec) {
     return words * sizeof(uint32_t);
 }
 
+/**
+ * Estimates the cardinality of the HLL
+ * @arg h The hll to query
+ * @return An estimate of the cardinality
+ */
+double hll_size(hll_t *h, int time_length, time_t current_time) {
+    int num_zero = 0;
+    double raw_est = hll_raw_estimate(h, &num_zero, time_length, current_time);
+
+    // Check if we need to apply bias correction
+    int num_reg = NUM_REG(h->precision);
+    if (raw_est <= 5 * num_reg) {
+        raw_est -= hll_bias_estimate(h, raw_est);
+    }
+
+    // Check if linear counting should be used
+    double alt_est;
+    if (num_zero) {
+        alt_est = hll_linear_count(h, num_zero);
+    } else {
+        alt_est = raw_est;
+    }
+
+    // Determine which estimate to use
+    if (alt_est <= switchThreshold[h->precision-4]) {
+        return alt_est;
+    } else {
+        return raw_est;
+    }
+}
+
+double hll_size_total(hll_t *h) {
+    time_t ctime = time(NULL);
+    return hll_size(h, ctime, ctime);
+}
