@@ -142,6 +142,8 @@ int main(void)
     tcase_set_timeout(tc8, 3);
     tcase_add_test(tc9, test_hll_serialize);
     tcase_add_test(tc9, test_serialize_primitives);
+    tcase_add_test(tc9, test_hll_serialize_registers);
+    tcase_add_test(tc9, test_serialize_register);
 
 
     srunner_run_all(sr, CK_ENV);

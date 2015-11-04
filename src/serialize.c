@@ -65,7 +65,7 @@ int serialize_hll_register(serialize_t *s, hll_register *h) {
 
 int unserialize_hll_register(serialize_t *s, hll_register *h) {
     ERR(unserialize_long(s, &h->size));
-    h->capacity = h->size + 2;
+    h->capacity = h->size;
     h->points = malloc(h->capacity*sizeof(hll_register));
     for (long i=0; i<h->size; i++) {
         ERR(unserialize_long(s, &h->points[i].timestamp));

@@ -120,7 +120,6 @@ START_TEST(test_shll_error_bound)
 
     // Should be within 1%
     double s = hll_size(&h, 100, time(NULL));
-    printf("size is %f\n", s);
     fail_unless(s > 9900 && s < 10100);
 
     fail_unless(hll_destroy(&h) == 0);
