@@ -24,7 +24,6 @@ State of The Art Cardinality Estimation Algorithm"
 #define REG_PER_WORD 5  // floor(INT_WIDTH / REG_WIDTH)
 #define GROWTH_FACTOR 1.5
 
-#define NUM_REG(precision) ((1 << precision))
 #define INT_CEIL(num, denom) (((num) + (denom) - 1) / (denom))
 
 // Link the external murmur hash in
@@ -314,6 +313,7 @@ int hll_precision_for_error(double err) {
     return ceil(p);
 }
 
+
 /**
  * Computes the upper bound on variance given
  * a precision
@@ -333,6 +333,7 @@ double hll_error_for_precision(int prec) {
     int registers = pow(2, prec);
     return 1.04 / sqrt(registers);
 }
+
 
 /**
  * Computes the bytes required for a HLL of the
@@ -389,4 +390,13 @@ double hll_size(hll_t *h, int time_length, time_t current_time) {
 double hll_size_total(hll_t *h) {
     time_t ctime = time(NULL);
     return hll_size(h, ctime, ctime);
+}
+
+int hll_serialize(hll_t *h, hll_serialize_t *s) {
+    return -1;
+}
+
+int hll_register_serialize(hll_t *h, hll_serialize_t *s) {
+    int num_reg = NUM_REG(h->precision);
+    return -1;
 }

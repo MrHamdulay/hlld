@@ -5,18 +5,20 @@
 #ifndef HLL_H
 #define HLL_H
 
+#define NUM_REG(precision) ((1 << precision))
+
 // Ensure precision in a sane bound
 #define HLL_MIN_PRECISION 4      // 16 registers
 #define HLL_MAX_PRECISION 18     // 262,144 registers
 
 typedef struct {
     time_t timestamp;
-    int register_;
+    long register_;
 } hll_point;
 
 typedef struct {
-    size_t size;
-    size_t capacity;
+    long size;
+    long capacity;
     hll_point *points;
 } hll_register;
 
