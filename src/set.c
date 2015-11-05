@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <assert.h>
 #include "set.h"
+#include "serialize.h"
 #include "type_compat.h"
 
 /*
@@ -100,6 +101,7 @@ int init_set(hlld_config *config, char *set_name, int discover, hlld_set **set) 
         res = thread_safe_fault(s);
         if (res) {
             syslog(LOG_ERR, "Failed to fault in the set '%s'. Err: %d", s->set_name, res);
+            printf("Failed to fault in the set '%s'. Err: %d", s->set_name, res);
         }
     }
 
@@ -344,14 +346,21 @@ static int thread_safe_fault(hlld_set *s) {
         mode = ANONYMOUS;
         res = bitmap_from_file(-1, size, mode, &s->bm);
 
+        hll_init(
+                s->set_config.default_precision,
+                s->set_config.sliding_period, 
+                s->set_config.sliding_precision,
+                &s->hll); 
         // Skip the fault in
-        goto CREATE_HLL;
+        goto LEAVE;
 
     } else if (s->config->use_mmap) {
         mode = SHARED;
 
     } else {
-        mode = PERSISTENT;
+        //mode = PERSISTENT;
+        // XXX We no longer have a persistent mode
+        mode = SHARED;
     }
 
     // Get the full path to the bitmap
@@ -361,10 +370,11 @@ static int thread_safe_fault(hlld_set *s) {
     struct stat buf;
     res = stat(bitmap_path, &buf);
 
-    // Handle if the file exists
+    // Handle if the file exists (read existing hll)
     if (res == 0) {
         syslog(LOG_INFO, "Discovered HLL set: %s.", bitmap_path);
-        res = bitmap_from_filename(bitmap_path, buf.st_size, 0, mode, &s->bm);
+        res = unserialize_hll_from_filename(bitmap_path, &s->hll);
+        //res = bitmap_from_filename(bitmap_path, buf.st_size, 0, mode, &s->bm);
         if (res) {
             syslog(LOG_ERR, "Failed to load bitmap: %s. %s", bitmap_path, strerror(errno));
             goto LEAVE;
@@ -373,31 +383,15 @@ static int thread_safe_fault(hlld_set *s) {
         // Increase our page ins
         s->counters.page_ins += 1;
 
-    // Handle if it doesn't exist
+    // Handle if it doesn't exist (create the file)
     } else if (res == -1 && errno == ENOENT) {
-        syslog(LOG_INFO, "Creating HLL set: %s.", bitmap_path);
-        res = bitmap_from_filename(bitmap_path, size, 1, mode, &s->bm);
-        if (res) {
-            syslog(LOG_ERR, "Failed to create bitmap: %s. %s", bitmap_path, strerror(errno));
-            goto LEAVE;
-        }
-
+        // We no longer need to create a file before serializing
+        //syslog(LOG_INFO, "Creating HLL set: %s.", bitmap_path);
     // Handle any other error
     } else {
         syslog(LOG_ERR, "Failed to query the register file for: %s. %s", bitmap_path, strerror(errno));
         goto LEAVE;
     }
-
-CREATE_HLL:
-    // Create the HLL
-    res = hll_init_from_bitmap(s->set_config.default_precision,
-                &s->bm, &s->hll);
-
-    // Disable proxied
-    if (!res)
-        s->is_proxied = 0;
-    else
-        syslog(LOG_ERR, "Failed to create HLL! Res: %d", res);
 
 LEAVE:
     // Release lock

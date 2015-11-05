@@ -21,4 +21,7 @@ int serialize_long(serialize_t *s, long i);
 int unserialize_long(serialize_t *s, long *i);
 int serialize_unsigned_char(serialize_t *s, unsigned char c);
 int unserialize_unsigned_char(serialize_t *s, unsigned char *c);
+
+int unserialize_hll_from_file(int fileno, uint64_t len, hll_t *h);
+int unserialize_hll_from_filename(char *filename, hll_t *h);
 #endif

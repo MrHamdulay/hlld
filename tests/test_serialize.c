@@ -64,7 +64,6 @@ START_TEST(test_hll_serialize_registers)
     s.offset = 0;
     fail_unless(unserialize_hll(&s, &h_unserialize) == 0);
 
-    printf("register 0 size %ld register 1 size %ld\n", h_unserialize.registers[0].size, h_unserialize.registers[1].size);
     fail_unless(h_unserialize.registers[0].size == 2);
     fail_unless(h_unserialize.registers[1].size == 1);
     fail_unless(h_unserialize.registers[0].points[0].register_ == 2);

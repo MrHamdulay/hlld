@@ -1,4 +1,11 @@
 #include <assert.h>
+#include <unistd.h>
+#include <sys/fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/errno.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "serialize.h"
 #include "hll.h"
 
@@ -100,4 +107,73 @@ int unserialize_hll(serialize_t *s, hll_t *h) {
         ERR(unserialize_hll_register(s, &h->registers[i]));
     }
     return 0;
+}
+int unserialize_hll_from_filename(char *filename, hll_t *h) {
+    int fileno = open(filename, O_RDWR, 0644);
+    if (fileno == -1) {
+        perror("open failed on bitmap!");
+        return -errno;
+    }
+
+    struct stat buf;
+    int res = fstat(fileno, &buf);
+    if (res != 0) {
+        perror("fstat failed on bitmap!");
+        close(fileno);
+        return -errno;
+    }
+
+    uint64_t len = buf.st_size;
+
+    res = unserialize_hll_from_file(fileno, len, h);
+
+    close(fileno);
+    return res;
+}
+
+int unserialize_hll_from_file(int fileno, uint64_t len, hll_t *h) {
+    // Hack for old kernels and bad length checking
+    if (len == 0) {
+        return -EINVAL;
+    }
+
+    // Check for and clear NEW_BITMAP from the mode
+    // Handle each mode
+    int flags;
+    int newfileno;
+    flags = MAP_SHARED;
+    newfileno = dup(fileno);
+    if (newfileno < 0) return -errno;
+
+    // Perform the map in
+    unsigned char* addr = mmap(NULL, len, PROT_READ|PROT_WRITE,
+            flags, newfileno, 0);
+
+    // Check for an error, otherwise return
+    if (addr == MAP_FAILED) {
+        perror("mmap failed!");
+        if (newfileno >= 0) {
+            close(newfileno);
+        }
+        return -errno;
+    }
+
+    // Provide some advise on how the memory will be used
+    int res;
+    res = madvise(addr, len, MADV_WILLNEED);
+    if (res != 0) {
+        perror("Failed to call madvise() [MADV_WILLNEED]");
+    }
+    res = madvise(addr, len, MADV_RANDOM);
+    if (res != 0) {
+        perror("Failed to call madvise() [MADV_RANDOM]");
+    }
+
+    serialize_t s = {addr, 0, len};
+    res = unserialize_hll(&s, h);
+    if (res != 0) {
+        perror("Failed to unserialize hll");
+    }
+
+    return res;
 }
