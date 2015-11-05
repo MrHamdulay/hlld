@@ -331,7 +331,9 @@ START_TEST(test_set_config_basic_config)
 size = 1024\n\
 in_memory = 1\n\
 default_eps = 0.01625\n\
-default_precision = 12\n";
+default_precision = 12\n\
+sliding_period = 11\n\
+sliding_precision = 12\n";
     write(fh, buf, strlen(buf));
     fchmod(fh, 777);
     close(fh);
@@ -346,6 +348,8 @@ default_precision = 12\n";
     fail_unless(config.default_eps == 0.01625);
     fail_unless(config.default_precision == 12);
     fail_unless(config.in_memory == 1);
+    fail_unless(config.sliding_period == 11);
+    fail_unless(config.sliding_precision == 12);
 
     unlink("/tmp/set_basic_config");
 }

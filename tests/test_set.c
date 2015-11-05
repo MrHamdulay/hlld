@@ -77,7 +77,8 @@ START_TEST(test_set_init_discover_destroy)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir("/tmp/hlld/hlld.test_set") == 2);
+    int num_deleted = delete_dir("/tmp/hlld/hlld.test_set");
+    fail_unless(num_deleted == 2 || num_deleted == 1);
 }
 END_TEST
 
@@ -145,6 +146,7 @@ START_TEST(test_set_add)
         res = hset_add(set, (char*)&buf);
         fail_unless(res == 0);
     }
+    printf("hset_size_total %d", hset_size_total(set));
 
     fail_unless(hset_size_total(set) > 9800 && hset_size_total(set) < 10200);
     fail_unless(hset_byte_size(set) == 3280);

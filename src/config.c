@@ -361,7 +361,11 @@ static int set_config_callback(void* user, const char* section, const char* name
 #define NAME_MATCH(param) (strcasecmp(param, name) == 0)
 
     // Handle the int cases
-    if (NAME_MATCH("in_memory")) {
+    if (NAME_MATCH("sliding_period")) {
+        return value_to_int(value, &config->sliding_period);
+    } else if (NAME_MATCH("sliding_precision")) {
+        return value_to_int(value, &config->sliding_precision);
+    } else if (NAME_MATCH("in_memory")) {
         return value_to_int(value, &config->in_memory);
     } else if (NAME_MATCH("default_precision")) {
         return value_to_int(value, &config->default_precision);
@@ -422,10 +426,15 @@ int update_filename_from_set_config(char *filename, hlld_set_config *config) {
 size = %llu\n\
 default_eps = %f\n\
 default_precision = %d\n\
-in_memory = %d\n", (unsigned long long)config->size,
+in_memory = %d\n\
+sliding_period = %d\n\
+sliding_precision = %d\n ", 
+            (unsigned long long)config->size,
             config->default_eps,
             config->default_precision,
-            config->in_memory
+            config->in_memory,
+            config->sliding_period,
+            config->sliding_precision
            );
 
     // Close

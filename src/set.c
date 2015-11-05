@@ -337,16 +337,12 @@ static int thread_safe_fault(hlld_set *s) {
     if (!s->is_proxied)
         goto LEAVE;
 
-    // Determine the expected size
-    uint64_t size = hll_bytes_for_precision(s->set_config.default_precision);
-
     // Get the mode for our bitmap
     bitmap_mode mode;
     if (s->set_config.in_memory) {
         mode = ANONYMOUS;
-        res = bitmap_from_file(-1, size, mode, &s->bm);
 
-        hll_init(
+        res = hll_init(
                 s->set_config.default_precision,
                 s->set_config.sliding_period, 
                 s->set_config.sliding_precision,
@@ -380,6 +376,7 @@ static int thread_safe_fault(hlld_set *s) {
             goto LEAVE;
         }
 
+        s->is_proxied = 0;
         // Increase our page ins
         s->counters.page_ins += 1;
 
@@ -387,6 +384,12 @@ static int thread_safe_fault(hlld_set *s) {
     } else if (res == -1 && errno == ENOENT) {
         // We no longer need to create a file before serializing
         //syslog(LOG_INFO, "Creating HLL set: %s.", bitmap_path);
+        s->is_proxied = 0;
+        res = hll_init(
+                s->set_config.default_precision,
+                s->set_config.sliding_period, 
+                s->set_config.sliding_precision,
+                &s->hll); 
     // Handle any other error
     } else {
         syslog(LOG_ERR, "Failed to query the register file for: %s. %s", bitmap_path, strerror(errno));
