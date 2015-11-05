@@ -24,4 +24,7 @@ int unserialize_unsigned_char(serialize_t *s, unsigned char *c);
 
 int unserialize_hll_from_file(int fileno, uint64_t len, hll_t *h);
 int unserialize_hll_from_filename(char *filename, hll_t *h);
+
+size_t serialized_hll_size(hll_t *h);
+int serialize_hll_to_filename(char *filename, hll_t *h);
 #endif

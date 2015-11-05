@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "serialize.h"
+#include <signal.h>
 #include "hll.h"
 
 #define SERIAL_VERSION 1
@@ -83,7 +84,7 @@ int unserialize_hll_register(serialize_t *s, hll_register *h) {
 
 int serialize_hll(serialize_t *s, hll_t *h) {
     ERR(serialize_int(s, SERIAL_VERSION));
-    ERR(serialize_unsigned_char(s, h->precision));
+    ERR(serialize_int(s, (int)h->precision));
     ERR(serialize_int(s, h->window_period));
     ERR(serialize_int(s, h->window_precision));
     int num_regs = NUM_REG(h->precision);
@@ -96,9 +97,12 @@ int serialize_hll(serialize_t *s, hll_t *h) {
 int unserialize_hll(serialize_t *s, hll_t *h) {
     int version;
     ERR(unserialize_int(s, &version));
-    if (version != SERIAL_VERSION)
+    if (version != SERIAL_VERSION) {
         return -1;
-    ERR(unserialize_unsigned_char(s, &h->precision));
+    }
+    int precision;
+    ERR(unserialize_int(s, &precision));
+    h->precision = (unsigned char)precision;
     ERR(unserialize_int(s, &h->window_period));
     ERR(unserialize_int(s, &h->window_precision));
     int num_regs = NUM_REG(h->precision);
@@ -111,7 +115,7 @@ int unserialize_hll(serialize_t *s, hll_t *h) {
 int unserialize_hll_from_filename(char *filename, hll_t *h) {
     int fileno = open(filename, O_RDWR, 0644);
     if (fileno == -1) {
-        perror("open failed on bitmap!");
+        printf("open failed to unserialize %s: %d\n", filename, errno);
         return -errno;
     }
 
@@ -132,6 +136,7 @@ int unserialize_hll_from_filename(char *filename, hll_t *h) {
 }
 
 int unserialize_hll_from_file(int fileno, uint64_t len, hll_t *h) {
+    printf("serializing from file\n");
     // Hack for old kernels and bad length checking
     if (len == 0) {
         return -EINVAL;
@@ -176,4 +181,39 @@ int unserialize_hll_from_file(int fileno, uint64_t len, hll_t *h) {
     }
 
     return res;
+}
+
+size_t serialized_hll_size(hll_t *h) {
+    // VERSION, precision, window_period, window_precision
+    size_t size = sizeof(int)*3 + sizeof(long);
+
+    for(int i=0; i<NUM_REG(h->precision); i++) {
+        // size, size*(timestamp, register)
+        size += sizeof(long) + 2*sizeof(long)*h->registers[i].size; 
+    }
+    return size;
+}
+
+int serialize_hll_to_filename(char *filename, hll_t *h) {
+    size_t serialized_size  = serialized_hll_size(h)+20;
+
+    int fileno = open(filename, O_RDWR | O_CREAT | O_TRUNC);
+    if (fileno == -1) {
+        perror("open failed on serialization");
+        return -errno;
+    }
+
+    unsigned char* addr = malloc(sizeof(char)*serialized_size);
+    close(fileno);
+
+    serialize_t s = {addr, 0, serialized_size};
+    int res = serialize_hll(&s, h);
+    if (res == -1) {
+        perror("unable to serialize hll");
+        return -1;
+    }
+
+    free(addr);
+
+    return 0;
 }

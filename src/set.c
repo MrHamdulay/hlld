@@ -174,6 +174,7 @@ int hset_flush(hlld_set *set) {
 
     // Write out set_config
     char *config_name = join_path(set->full_path, (char*)CONFIG_FILENAME);
+    char *serialized_name = join_path(set->full_path, (char*)DATA_FILE_NAME);
     int res = update_filename_from_set_config(config_name, &set->set_config);
     free(config_name);
     if (res) {
@@ -187,8 +188,9 @@ int hset_flush(hlld_set *set) {
     // Flush the set
     res = 0;
     if (!set->set_config.in_memory) {
-        res = bitmap_flush(&set->bm);
+        res = serialize_hll_to_filename(serialized_name, &set->hll);
     }
+    free(serialized_name);
 
     // Compute the elapsed time
     gettimeofday(&end, NULL);
@@ -350,9 +352,6 @@ static int thread_safe_fault(hlld_set *s) {
         // Skip the fault in
         goto LEAVE;
 
-    } else if (s->config->use_mmap) {
-        mode = SHARED;
-
     } else {
         //mode = PERSISTENT;
         // XXX We no longer have a persistent mode
@@ -384,6 +383,7 @@ static int thread_safe_fault(hlld_set *s) {
     } else if (res == -1 && errno == ENOENT) {
         // We no longer need to create a file before serializing
         //syslog(LOG_INFO, "Creating HLL set: %s.", bitmap_path);
+        printf("bitmap not found, init in memory\n");
         s->is_proxied = 0;
         res = hll_init(
                 s->set_config.default_precision,
