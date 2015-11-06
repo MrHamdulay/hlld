@@ -14,7 +14,7 @@ int value_to_int64(const char *val, uint64_t *result) {
         return 0;
     }
     *result = res;
-    return 1;
+    return 0;
 }
 
 /**

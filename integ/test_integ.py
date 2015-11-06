@@ -63,6 +63,7 @@ port = %(port)d
         raise EnvironmentError("Failed to connect!")
 
     # Make a second connection
+    print 'Connecting at port %d' % port
     conn2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     conn2.settimeout(1)
     conn2.connect(("localhost", port))
@@ -211,6 +212,20 @@ class TestInteg(object):
         assert fh.readline() == "Done\n"
         server.sendall("bulk foobar test blah\n")
         assert fh.readline() == "Done\n"
+
+    def test_size(self, servers):
+        "Tests size command"
+        server, _ = servers
+        fh = server.makefile()
+        server.sendall("create foobar\n")
+        assert fh.readline() == "Done\n"
+        for i in xrange(10000):
+            server.sendall("s foobar test%d\n" % i)
+            assert fh.readline() == "Done\n"
+        server.sendall("size foobar 100\n")
+        size = int(fh.readline().split()[1])
+        print size
+        assert 9900 <= size <= 10100
 
     def test_aliases(self, servers):
         "Tests aliases"

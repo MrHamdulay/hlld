@@ -111,6 +111,7 @@ int handle_client_connect(hlld_conn_handler *handle) {
                 break;
             case SIZE:
                 handle_size_cmd(handle, arg_buf, arg_buf_len);
+                break;
             default:
                 handle_client_err(handle->conn, (char*)&CMD_NOT_SUP, CMD_NOT_SUP_LEN);
                 break;
@@ -174,21 +175,15 @@ static void handle_size_cmd(hlld_conn_handler *handle, char *args, int args_len)
 
     // Scan past the set name for the key
     char *key;
-    int key_len;
-    int err = buffer_after_terminator(args, args_len, ' ', &key, &key_len);
-    if (err || key_len <= 1) {
+    char *time_window_string;
+    int time_window_len;
+    int err = buffer_after_terminator(args, args_len, ' ', &time_window_string, &time_window_len);
+    key = args;
+    if (err || args_len <= 1) {
         handle_client_err(handle->conn, (char*)&SET_NEEDED, SET_NEEDED_LEN);
         return;
     }
 
-    // Scan for the time window
-    char *time_window_string;
-    int time_window_len;
-    err = buffer_after_terminator(args, args_len, ' ', &time_window_string, &time_window_len);
-    if (err || time_window_len <= 0) {
-        handle_client_err(handle->conn, (char*)&BAD_ARGS, BAD_ARGS_LEN);
-        return;
-    }
 
     // Convert time window to an integer
     uint64_t time_window;
@@ -203,7 +198,7 @@ static void handle_size_cmd(hlld_conn_handler *handle, char *args, int args_len)
     if (err) INTERNAL_ERROR();
 
     char estimate_string[512];
-    int estimate_length = snprintf(estimate_string, 512, "size %lld", estimate);
+    int estimate_length = snprintf(estimate_string, 512, "size %lld\n", estimate);
     if (estimate_length == -1) INTERNAL_ERROR();
 
     handle_client_resp(handle->conn, estimate_string, estimate_length);
