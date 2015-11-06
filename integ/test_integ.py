@@ -222,10 +222,16 @@ class TestInteg(object):
         for i in xrange(10000):
             server.sendall("s foobar test%d\n" % i)
             assert fh.readline() == "Done\n"
+
         server.sendall("size foobar 100\n")
         size = int(fh.readline().split()[1])
-        print size
         assert 9900 <= size <= 10100
+        time.sleep(2)
+        server.sendall("s foobar test1\n")
+        assert fh.readline() == "Done\n"
+        server.sendall("size foobar 1\n")
+        size = int(fh.readline().split()[1])
+        assert 0 < size <= 10
 
     def test_aliases(self, servers):
         "Tests aliases"
