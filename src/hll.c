@@ -38,7 +38,8 @@ extern void MurmurHash3_x64_128(const void * key, const int len, const uint32_t 
  * @arg h the SHLL to initialize
  */
 int hll_init(unsigned char precision, int window_period, int window_precision, hll_t *h) {
-    if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION)
+    if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION || 
+        window_period <= 0 || window_precision <= 0)
         return -1;
 
     // Store parameters

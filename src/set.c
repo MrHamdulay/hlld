@@ -64,6 +64,8 @@ int init_set(hlld_config *config, char *set_name, int discover, hlld_set **set) 
     s->set_config.default_eps = config->default_eps;
     s->set_config.default_precision = config->default_precision;
     s->set_config.in_memory = config->in_memory;
+    s->set_config.sliding_period = config->sliding_period;
+    s->set_config.sliding_precision = config->sliding_precision;
 
     // Get the folder name
     char *folder_name = NULL;
