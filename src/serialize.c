@@ -1,4 +1,6 @@
 #include <assert.h>
+#include <string.h>
+#include <syslog.h>
 #include <unistd.h>
 #include <sys/fcntl.h>
 #include <sys/mman.h>
@@ -197,22 +199,31 @@ size_t serialized_hll_size(hll_t *h) {
 int serialize_hll_to_filename(char *filename, hll_t *h) {
     size_t serialized_size  = serialized_hll_size(h)+20;
 
-    int fileno = open(filename, O_RDWR | O_CREAT | O_TRUNC);
+    int fileno = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0644);
     if (fileno == -1) {
-        perror("open failed on serialization");
+        syslog(LOG_ERR, "open failed on serialization %s", strerror(errno) );
         return -errno;
     }
 
     unsigned char* addr = malloc(sizeof(char)*serialized_size);
-    close(fileno);
 
     serialize_t s = {addr, 0, serialized_size};
     int res = serialize_hll(&s, h);
     if (res == -1) {
-        perror("unable to serialize hll");
+        syslog(LOG_ERR, "unable to serialize hl");
         return -1;
     }
+    size_t written = 0;
+    while(written < serialized_size) {
+        res = pwrite(fileno, addr, serialized_size-written, written);
+        if (res == -1 && errno != EINTR) {
+            return -errno;
+        }
+        written += res;
+        res = 0;
+    }
 
+    close(fileno);
     free(addr);
 
     return 0;

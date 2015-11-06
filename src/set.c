@@ -346,6 +346,7 @@ static int thread_safe_fault(hlld_set *s) {
     if (s->set_config.in_memory) {
         mode = ANONYMOUS;
 
+        s->is_proxied = 0;
         res = hll_init(
                 s->set_config.default_precision,
                 s->set_config.sliding_period, 
@@ -366,10 +367,13 @@ static int thread_safe_fault(hlld_set *s) {
     // Check if the register file exists
     struct stat buf;
     res = stat(bitmap_path, &buf);
+    if(res == 0) {
+        syslog(LOG_ERR, "Discovered HLL set: %s.", bitmap_path);
+    }
 
-    // Handle if the file exists (read existing hll)
-    if (res == 0) {
-        syslog(LOG_INFO, "Discovered HLL set: %s.", bitmap_path);
+    // Handle if the file exists and contains data (read existing hll)
+    if (res == 0 && buf.st_size != 0) {
+        syslog(LOG_ERR, "Discovered HLL set: %s.", bitmap_path);
         res = unserialize_hll_from_filename(bitmap_path, &s->hll);
         //res = bitmap_from_filename(bitmap_path, buf.st_size, 0, mode, &s->bm);
         if (res) {
@@ -382,10 +386,8 @@ static int thread_safe_fault(hlld_set *s) {
         s->counters.page_ins += 1;
 
     // Handle if it doesn't exist (create the file)
-    } else if (res == -1 && errno == ENOENT) {
+    } else if ((res == -1 && errno == ENOENT) || (res == 0 && buf.st_size == 0)) {
         // We no longer need to create a file before serializing
-        //syslog(LOG_INFO, "Creating HLL set: %s.", bitmap_path);
-        printf("bitmap not found, init in memory\n");
         s->is_proxied = 0;
         res = hll_init(
                 s->set_config.default_precision,
