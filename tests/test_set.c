@@ -146,7 +146,6 @@ START_TEST(test_set_add)
         res = hset_add(set, (char*)&buf);
         fail_unless(res == 0);
     }
-    printf("hset_size_total %d", hset_size_total(set));
 
     fail_unless(hset_size_total(set) > 9800 && hset_size_total(set) < 10200);
     fail_unless(hset_byte_size(set) == 3280);
@@ -154,7 +153,9 @@ START_TEST(test_set_add)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir("/tmp/hlld/hlld.test_set4") == 2);
+    int delete_num = delete_dir("/tmp/hlld/hlld.test_set4");
+    // we do not always write a registers file
+    fail_unless(delete_num == 2 || delete_num == 1);
 }
 END_TEST
 
