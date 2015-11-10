@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 static int NUM_THREADS = 1;
-static int NUM_KEYS = 1000000;
+static long long NUM_KEYS = 100000000;
 static char* HOST = "127.0.0.1";
 static int PORT = 4553;
 static char *SET_NAME = "foobar%d";
@@ -51,7 +51,7 @@ void *thread_main(void *in) {
 
     struct timeval start_connect, start_create, start_set, start_check, end;
     char out_buf[16];
-    int num, sent, len;
+    long long num, sent, len;
 
     // Connect
     gettimeofday(&start_connect, NULL);
@@ -66,7 +66,7 @@ void *thread_main(void *in) {
     // Make set
     gettimeofday(&start_create, NULL);
 
-    len = sprintf((char*)&info.cmd_buf, "create %s\n", buf);
+    len = sprintf((char*)&info.cmd_buf, "create %s in_memory=0\n", buf);
     send(info.conn_fd, info.cmd_buf, len, 0);
     num = recv(info.conn_fd, (char*)&out_buf, 5, 0);
     if (strcmp(out_buf, "Done\n") != 0) {
@@ -79,8 +79,8 @@ void *thread_main(void *in) {
 
     // Set
     gettimeofday(&start_set, NULL);
-    for (int i=0; i< NUM_KEYS; i++) {
-        sprintf((char*)&info.cmd_buf, "set %s test%d\n", buf, i);
+    for (long long i=0; i< NUM_KEYS; i++) {
+        sprintf((char*)&info.cmd_buf, "set %s test%lld \n", buf, i);
         sent = send(info.conn_fd, (char*)&info.cmd_buf, strlen(info.cmd_buf), 0);
         if (sent == -1) {
             printf("Failed to send!");
@@ -88,23 +88,26 @@ void *thread_main(void *in) {
         }
     }
 
-    for (int i=0; i< NUM_KEYS; i++) {
+    for (long long i=0; i< NUM_KEYS; i++) {
         int remain = 5;
         while (remain) {
             num = recv(info.conn_fd, (char*)out_buf, remain, 0);
             if (num == -1) {
-                printf("Failed to read! Iter: %d. Res: %d\n", i, num);
+                printf("Failed to read! Iter: %lld. Res: %lld\n", i, num);
                 return NULL;
             }
             remain -= num;
         }
         sets++;
     }
+
+    // Get
+
     gettimeofday(&end, NULL);
     printf("Set: %d msec. Num: %d\n", timediff(&start_set, &end), sets);
 
-    sprintf((char*)&info.cmd_buf, "drop %s\n", buf);
-    sent = send(info.conn_fd, (char*)&info.cmd_buf, strlen(info.cmd_buf), 0);
+    /*sprintf((char*)&info.cmd_buf, "drop %s\n", buf);
+    sent = send(info.conn_fd, (char*)&info.cmd_buf, strlen(info.cmd_buf), 0);*/
 
     return NULL;
 }

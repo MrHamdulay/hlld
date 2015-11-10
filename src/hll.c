@@ -129,8 +129,9 @@ void hll_register_remove_point(hll_register *r, size_t idx) {
  * @arg p The time/leading point to add to the register
  */
 void hll_register_add_point(hll_t *h, hll_register *r, hll_point p) {
+    p.timestamp /= h->window_precision;
     // remove all points with smaller register value or that have expired.
-    time_t max_time = p.timestamp - h->window_period;
+    time_t max_time = p.timestamp - h->window_period/ h->window_precision;
     // do this in reverse order because we remove points from the right end
     for (int i=r->size-1; i>=0; i--) {
         if (r->points[i].register_ <= p.register_ ||
@@ -158,7 +159,7 @@ int hll_get_register(hll_t *h, int register_index, int time_length, time_t curre
     assert(register_index < NUM_REG(h->precision) && register_index >= 0);
     hll_register *r = &h->registers[register_index];
 
-    time_t min_time = current_time - time_length;
+    time_t min_time = current_time - time_length/h->window_precision;
     int register_value = 0;
 
     for(long i=0; i<r->size; i++) {
