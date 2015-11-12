@@ -402,8 +402,17 @@ double hll_size_total(hll_t *h) {
 
 /**
  * Takes the union of a few sets and returns the cardinality
+ *
+ * returns -1 when the precision of all the hll's do not match
  */
 double hll_union_size(hll_t **hs, int num_hs, int time_length, time_t current_time) {
+    // the precision of each hll needs to be the same
+    int precision = (int)hs[0]->precision;
+    for(int i=1; i<num_hs; i++) {
+        if (hs[i]->precision != (int)precision) {
+            return -2;
+        }
+    }
     int num_zero = 0;
     double raw_est = hll_raw_estimate_union(hs, num_hs, &num_zero, time_length, current_time);
 

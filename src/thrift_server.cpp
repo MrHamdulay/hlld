@@ -25,19 +25,30 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
   }
 
   void ping(std::string& _return) {
-      _return = "pong";
+      _return = "PONG";
   }
 
   void add_many(const int32_t timestamp, const std::string& key, const std::vector<std::string> & values) {
-    // Your implementation goes here
-    for(std::string value: values) {
-    }
-    printf("add_many\n");
+      char **char_v = (char**)malloc(sizeof(char*)*values.size());
+      for(size_t i=0; i<values.size(); i++) {
+          char_v[i] = (char*)&values[i][0];
+      }
+
+      int res = setmgr_set_keys(mgr, (char*)&key[0], char_v, values.size());
+      // set does not exist
+      if (res == -1 ) {
+          setmgr_create_set(mgr, (char*)&key[0], NULL);
+          res = setmgr_set_keys(mgr, (char*)&key[0], char_v, values.size());
+      }
+      else if (res < -1) {
+          syslog(LOG_ERR, "Failure to add to key %s with value %s res: %d", (char*)&key[0], res);
+      }
+      free(char_v);
   }
 
   int32_t card(const int32_t timestamp, const int32_t window, const std::vector<std::string> & keys, const std::vector<std::string> & values) {
-    // Your implementation goes here
-    printf("card\n");
+      //add(timestamp, 
+      //return get_union(timestamp, window, keys);
   }
 
   void flush() {
@@ -72,13 +83,21 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
   }
 
   int32_t get_union(const int32_t timestamp, const int16_t window, const std::vector<std::string> & keys) {
-    // Your implementation goes here
-    printf("get_union\n");
+      char **set_names = (char**)malloc(keys.size()*sizeof(char**));
+      for(size_t i=0; i<keys.size(); i++) {
+          set_names[i] = (char*)&keys[i];
+      }
+      uint64_t estimate;
+      setmgr_set_union_size(mgr, keys.size(), set_names, &estimate, window);
+      free(set_names);
+
+      return (int32_t)estimate;
+
   }
 
   int32_t get_with_element(const int32_t timestamp, const int16_t window, const std::string& key, const std::string& value) {
     // Your implementation goes here
-    printf("get_with_element\n");
+    printf("get_withelement\n");
   }
 
   int32_t get_union_with_element(const int32_t timestamp, const int16_t window, const std::vector<std::string> & keys, const std::string& value) {
