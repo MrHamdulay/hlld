@@ -10,7 +10,7 @@
  * networking layer.
  */
 typedef struct {
-    hlld_config *config;     // Global configuration
+    struct hlld_config *config;     // Global configuration
     hlld_setmgr *mgr;       // Set manager
     hlld_conn_info *conn;    // Opaque handle into the networking stack
 } hlld_conn_handler;

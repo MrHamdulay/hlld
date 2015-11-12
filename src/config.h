@@ -1,12 +1,12 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef HLL_CONFIG_H
+#define HLL_CONFIG_H
 #include <stdint.h>
 #include <syslog.h>
 
 /**
  * Stores our configuration
  */
-typedef struct {
+struct hlld_config {
     int tcp_port;
     int udp_port;
     char *bind_address;
@@ -22,20 +22,20 @@ typedef struct {
     int use_mmap;
     int sliding_period;
     int sliding_precision;
-} hlld_config;
+};
 
 /**
  * This structure is used to persist
  * set specific settings to an INI file.
  */
-typedef struct {
+struct hlld_set_config {
     double default_eps;
     int default_precision;
     int sliding_period;
     int sliding_precision;
     int in_memory;
     uint64_t size;
-} hlld_set_config;
+};
 
 
 /**
@@ -46,7 +46,7 @@ typedef struct {
  * @arg config Output. The config object to initialize.
  * @return 0 on success, negative on error.
  */
-int config_from_filename(char *filename, hlld_config *config);
+int config_from_filename(char *filename, struct hlld_config *config);
 
 /**
  * Updates the configuration from a filename.
@@ -55,7 +55,7 @@ int config_from_filename(char *filename, hlld_config *config);
  * @arg config Output. The config object to update. Does not initialize!
  * @return 0 on success, negative on error.
  */
-int set_config_from_filename(char *filename, hlld_set_config *config);
+int set_config_from_filename(char *filename, struct hlld_set_config *config);
 
 /**
  * Writes the configuration to a filename.
@@ -64,14 +64,14 @@ int set_config_from_filename(char *filename, hlld_set_config *config);
  * @arg config The config object to write out.
  * @return 0 on success, negative on error.
  */
-int update_filename_from_set_config(char *filename, hlld_set_config *config);
+int update_filename_from_set_config(char *filename, struct hlld_set_config *config);
 
 /**
  * Validates the configuration
  * @arg config The config object to validate.
  * @return 0 on success, negative on error.
  */
-int validate_config(hlld_config *config);
+int validate_config(struct hlld_config *config);
 
 // Configuration validation methods
 int sane_data_dir(char *data_dir);

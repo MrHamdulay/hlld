@@ -13,7 +13,7 @@ typedef struct conn_info hlld_conn_info;
  * @arg mgr The manager to pass up to the connection handlers
  * @arg netconf Output. The configuration for the networking stack.
  */
-int init_networking(hlld_config *config, void *mgr, hlld_networking **netconf_out);
+int init_networking(struct hlld_config *config, void *mgr, hlld_networking **netconf_out);
 
 /**
  * Entry point for the main thread to start accepting

@@ -80,6 +80,11 @@ double hll_size(hll_t *h, int time_length, time_t current_time);
 double hll_size_total(hll_t *h);
 
 /**
+ * Takes the union of a few sets and returns the cardinality
+ */
+double hll_union_size(hll_t **hs, int num_hs, int time_length, time_t current_time);
+
+/**
  * Computes the minimum digits of precision
  * needed to hit a target error.
  * @arg error The target error rate

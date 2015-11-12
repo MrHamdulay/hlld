@@ -17,12 +17,12 @@
  * sets that are about 300KB initially, and suited
  * to grow quickly.
  */
-static const hlld_config DEFAULT_CONFIG = {
+static const struct hlld_config DEFAULT_CONFIG = {
     4553,               // TCP defaults to 8673
     4554,               // UDP on 8674
-    "0.0.0.0",          // Default listen on 0.0.0.0
-    "/tmp/hlld",        // Tmp data dir, until configured
-    "INFO",             // INFO level
+    (char*)"0.0.0.0",          // Default listen on 0.0.0.0
+    (char*)"/tmp/hlld",        // Tmp data dir, until configured
+    (char*)"INFO",             // INFO level
     LOG_INFO,
     .01625,             // Default 1.625% error == precision 12
     12,                 // Default 12 precision (4096 registers)
@@ -51,7 +51,7 @@ static int config_callback(void* user, const char* section, const char* name, co
     }
 
     // Cast the user handle
-    hlld_config *config = (hlld_config*)user;
+    struct hlld_config *config = (struct hlld_config*)user;
 
     // Switch on the config
 #define NAME_MATCH(param) (strcasecmp(param, name) == 0)
@@ -121,7 +121,7 @@ static int config_callback(void* user, const char* section, const char* name, co
  * @arg config Output. The config object to initialize.
  * @return 0 on success, negative on error.
  */
-int config_from_filename(char *filename, hlld_config *config) {
+int config_from_filename(char *filename, struct hlld_config *config) {
     // Initialize to the default values
     memcpy(config, &DEFAULT_CONFIG, sizeof(hlld_config));
 
@@ -184,7 +184,8 @@ int sane_data_dir(char *data_dir) {
     }
 
     // Try to test we have permissions to write
-    char *test_path = join_path(data_dir, "PERMTEST");
+    char permtest[] = "PERMTEST";
+    char *test_path = join_path(data_dir, permtest);
     int fh = open(test_path, O_CREAT|O_RDWR, 0644);
 
     // Cleanup
@@ -324,7 +325,7 @@ int sane_worker_threads(int threads) {
  * @arg config The config object to validate.
  * @return 0 on success.
  */
-int validate_config(hlld_config *config) {
+int validate_config(struct hlld_config *config) {
     int res = 0;
 
     res |= sane_data_dir(config->data_dir);
@@ -355,7 +356,7 @@ static int set_config_callback(void* user, const char* section, const char* name
     }
 
     // Cast the user handle
-    hlld_set_config *config = (hlld_set_config*)user;
+    struct hlld_set_config *config = (struct hlld_set_config*)user;
 
     // Switch on the config
 #define NAME_MATCH(param) (strcasecmp(param, name) == 0)
@@ -395,7 +396,7 @@ static int set_config_callback(void* user, const char* section, const char* name
  * @arg config Output. The config object to update. Does not initialize!
  * @return 0 on success, negative on error.
  */
-int set_config_from_filename(char *filename, hlld_set_config *config) {
+int set_config_from_filename(char *filename, struct hlld_set_config *config) {
     // If there is no filename, return now
     if (filename == NULL)
         return 0;
@@ -416,7 +417,7 @@ int set_config_from_filename(char *filename, hlld_set_config *config) {
  * @arg config The config object to write out.
  * @return 0 on success, negative on error.
  */
-int update_filename_from_set_config(char *filename, hlld_set_config *config) {
+int update_filename_from_set_config(char *filename, struct hlld_set_config *config) {
     // Try to open the file
     FILE* f = fopen(filename, "w+");
     if (!f) return -errno;

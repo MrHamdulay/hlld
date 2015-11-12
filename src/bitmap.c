@@ -27,7 +27,7 @@ extern inline void bitmap_setbit(hlld_bitmap *map, uint64_t idx);
  * @arg map The output map. Will be initialized.
  * @return 0 on success. Negative on error.
  */
-int bitmap_from_file(int fileno, uint64_t len, bitmap_mode mode, hlld_bitmap *map) {
+int bitmap_from_file(int fileno, uint64_t len, unsigned int mode, hlld_bitmap *map) {
     // Hack for old kernels and bad length checking
     if (len == 0) {
         return -EINVAL;
@@ -59,7 +59,7 @@ int bitmap_from_file(int fileno, uint64_t len, bitmap_mode mode, hlld_bitmap *ma
     }
 
     // Perform the map in
-    unsigned char* addr = mmap(NULL, len, PROT_READ|PROT_WRITE,
+    unsigned char* addr = (unsigned char *)mmap(NULL, len, PROT_READ|PROT_WRITE,
             flags, ((mode == PERSISTENT) ? -1 : newfileno), 0);
 
     // Check for an error, otherwise return
@@ -152,7 +152,7 @@ int bitmap_from_filename(char* filename, uint64_t len, int create, bitmap_mode m
     }
 
     // Check if we need to resize
-    bitmap_mode extra_flags = 0;
+    unsigned int extra_flags = 0;
     if (create) {
         struct stat buf;
         int res = fstat(fileno, &buf);

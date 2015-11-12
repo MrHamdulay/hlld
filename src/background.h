@@ -14,7 +14,7 @@
  * @arg t The output thread
  * @return 1 if the thread was started
  */
-int start_flush_thread(hlld_config *config, hlld_setmgr *mgr, int *should_run, pthread_t *t);
+int start_flush_thread(struct hlld_config *config, hlld_setmgr *mgr, int *should_run, pthread_t *t);
 
 /**
  * Starts a cold unmap thread which on every
@@ -26,6 +26,6 @@ int start_flush_thread(hlld_config *config, hlld_setmgr *mgr, int *should_run, p
  * @arg t The output thread
  * @return 1 if the thread was started
  */
-int start_cold_unmap_thread(hlld_config *config, hlld_setmgr *mgr, int *should_run, pthread_t *);
+int start_cold_unmap_thread(struct hlld_config *config, hlld_setmgr *mgr, int *should_run, pthread_t *);
 
 #endif

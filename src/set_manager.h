@@ -12,16 +12,16 @@ typedef struct hlld_setmgr hlld_setmgr;
 /**
  * Lists of sets
  */
-typedef struct hlld_set_list {
+struct hlld_set_list {
     char *set_name;
     struct hlld_set_list *next;
-} hlld_set_list;
+};
 
-typedef struct {
+struct hlld_set_list_head {
    int size;
-   hlld_set_list *head;
-   hlld_set_list *tail;
-} hlld_set_list_head;
+   struct hlld_set_list *head;
+   struct hlld_set_list *tail;
+};
 
 /**
  * Initializer
@@ -31,14 +31,14 @@ typedef struct {
  * @arg mgr Output, resulting manager.
  * @return 0 on success.
  */
-int init_set_manager(hlld_config *config, int vacuum, hlld_setmgr **mgr);
+int init_set_manager(struct hlld_config *config, int vacuum, struct hlld_setmgr **mgr);
 
 /**
  * Cleanup
  * @arg mgr The manager to destroy
  * @return 0 on success.
  */
-int destroy_set_manager(hlld_setmgr *mgr);
+int destroy_set_manager(struct hlld_setmgr *mgr);
 
 /**
  * Should be invoked periodically by client threads to allow
@@ -48,7 +48,7 @@ int destroy_set_manager(hlld_setmgr *mgr);
  * state.
  * @arg mgr The manager
  */
-void setmgr_client_checkpoint(hlld_setmgr *mgr);
+void setmgr_client_checkpoint(struct hlld_setmgr *mgr);
 
 /**
  * Should be invoked by clients when they no longer
@@ -56,14 +56,14 @@ void setmgr_client_checkpoint(hlld_setmgr *mgr);
  * allows the vacuum thread to cleanup garbage state.
  * @arg mgr The manager
  */
-void setmgr_client_leave(hlld_setmgr *mgr);
+void setmgr_client_leave(struct hlld_setmgr *mgr);
 
 /**
  * Flushes the set with the given name
  * @arg set_name The name of the set to flush
  * @return 0 on success. -1 if the set does not exist.
  */
-int setmgr_flush_set(hlld_setmgr *mgr, char *set_name);
+int setmgr_flush_set(struct hlld_setmgr *mgr, char *set_name);
 
 /**
  * Sets keys in a given set
@@ -73,7 +73,7 @@ int setmgr_flush_set(hlld_setmgr *mgr, char *set_name);
  * @return 0 on success, -1 if the set does not exist.
  * -2 on internal error.
  */
-int setmgr_set_keys(hlld_setmgr *mgr, char *set_name, char **keys, int num_keys);
+int setmgr_set_keys(struct hlld_setmgr *mgr, char *set_name, char **keys, int num_keys);
 
 /**
  * Estimates the size of a set
@@ -81,7 +81,7 @@ int setmgr_set_keys(hlld_setmgr *mgr, char *set_name, char **keys, int num_keys)
  * @arg est Output pointer, the estimate on success.
  * @return 0 on success, -1 if the set does not exist.
  */
-int setmgr_set_size(hlld_setmgr *mgr, char *set_name, uint64_t *est, uint64_t time_window);
+int setmgr_set_size(struct hlld_setmgr *mgr, char *set_name, uint64_t *est, uint64_t time_window);
 
 /**
  * Estimates the total size of a set
@@ -89,7 +89,15 @@ int setmgr_set_size(hlld_setmgr *mgr, char *set_name, uint64_t *est, uint64_t ti
  * @arg est Output pointer, the estimate on success.
  * @return 0 on success, -1 if the set does not exist.
  */
-int setmgr_set_size_total(hlld_setmgr *mgr, char *set_name, uint64_t *est);
+int setmgr_set_size_total(struct hlld_setmgr *mgr, char *set_name, uint64_t *est);
+
+/**
+ * Estimates the size of the union of the sets
+ * @arg set_name The name of the set
+ * @arg est Output pointer, the estimate on success.
+ * @return 0 on success, -1 if the set does not exist.
+ */
+int setmgr_set_union_size(struct hlld_setmgr *mgr, int num_sets, char **set_names, uint64_t *est, uint64_t time_window);
 
 /**
  * Creates a new set of the given name and parameters.
@@ -98,7 +106,7 @@ int setmgr_set_size_total(hlld_setmgr *mgr, char *set_name, uint64_t *est);
  * @return 0 on success, -1 if the set already exists.
  * -2 for internal error.
  */
-int setmgr_create_set(hlld_setmgr *mgr, char *set_name, hlld_config *custom_config);
+int setmgr_create_set(struct hlld_setmgr *mgr, char *set_name, struct hlld_config *custom_config);
 
 /**
  * Deletes the set entirely. This removes it from the set
@@ -106,7 +114,7 @@ int setmgr_create_set(hlld_setmgr *mgr, char *set_name, hlld_config *custom_conf
  * @arg set_name The name of the set to delete
  * @return 0 on success, -1 if the set does not exist.
  */
-int setmgr_drop_set(hlld_setmgr *mgr, char *set_name);
+int setmgr_drop_set(struct hlld_setmgr *mgr, char *set_name);
 
 /**
  * Unmaps the set from memory, but leaves it
@@ -117,7 +125,7 @@ int setmgr_drop_set(hlld_setmgr *mgr, char *set_name);
  * @arg set_name The name of the set to delete
  * @return 0 on success, -1 if the set does not exist.
  */
-int setmgr_unmap_set(hlld_setmgr *mgr, char *set_name);
+int setmgr_unmap_set(struct hlld_setmgr *mgr, char *set_name);
 
 /**
  * Clears the set from the internal data stores. This can only
@@ -126,7 +134,7 @@ int setmgr_unmap_set(hlld_setmgr *mgr, char *set_name);
  * @return 0 on success, -1 if the set does not exist, -2
  * if the set is not proxied.
  */
-int setmgr_clear_set(hlld_setmgr *mgr, char *set_name);
+int setmgr_clear_set(struct hlld_setmgr *mgr, char *set_name);
 
 /**
  * Allocates space for and returns a linked
@@ -137,7 +145,7 @@ int setmgr_clear_set(hlld_setmgr *mgr, char *set_name);
  * @arg head Output, sets to the address of the list header
  * @return 0 on success.
  */
-int setmgr_list_sets(hlld_setmgr *mgr, char *prefix, hlld_set_list_head **head);
+int setmgr_list_sets(struct hlld_setmgr *mgr, char *prefix, struct hlld_set_list_head **head);
 
 /**
  * Allocates space for and returns a linked
@@ -148,12 +156,12 @@ int setmgr_list_sets(hlld_setmgr *mgr, char *prefix, hlld_set_list_head **head);
  * @arg head Output, sets to the address of the list header
  * @return 0 on success.
  */
-int setmgr_list_cold_sets(hlld_setmgr *mgr, hlld_set_list_head **head);
+int setmgr_list_cold_sets(struct hlld_setmgr *mgr, struct hlld_set_list_head **head);
 
 /**
  * Convenience method to cleanup a set list.
  */
-void setmgr_cleanup_list(hlld_set_list_head *head);
+void setmgr_cleanup_list(struct hlld_set_list_head *head);
 
 /**
  * This method allows a callback function to be invoked with hlld set.
@@ -163,14 +171,14 @@ void setmgr_cleanup_list(hlld_set_list_head *head);
  * It should be used to read metrics, size information, etc.
  * @return 0 on success, -1 if the set does not exist.
  */
-typedef void(*set_cb)(void* in, char *set_name, hlld_set *set);
-int setmgr_set_cb(hlld_setmgr *mgr, char *set_name, set_cb cb, void* data);
+typedef void(*set_cb)(void* in, char *set_name, struct hlld_set *set);
+int setmgr_set_cb(struct hlld_setmgr *mgr, char *set_name, set_cb cb, void* data);
 
 /**
  * This method is used to force a vacuum up to the current
  * version. It is generally unsafe to use in hlld,
  * but can be used in an embeded or test environment.
  */
-void setmgr_vacuum(hlld_setmgr *mgr);
+void setmgr_vacuum(struct hlld_setmgr *mgr);
 
 #endif

@@ -12,7 +12,7 @@ typedef enum {
 } bitmap_mode;
 
 typedef struct {
-    bitmap_mode mode;
+    unsigned int mode;
     int fileno;          // Underlying fileno
     uint64_t size;       // Size of bitmap in bytes
     unsigned char* mmap; // Starting address of the bitmap region

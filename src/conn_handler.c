@@ -46,7 +46,7 @@ static int buffer_after_terminator(char *buf, int buf_len, char terminator, char
 
 // Simple struct to hold data for a callback
 typedef struct {
-    hlld_setmgr *mgr;
+    struct hlld_setmgr *mgr;
     char **output;
 } set_cb_data;
 
@@ -286,12 +286,12 @@ static void handle_create_cmd(hlld_conn_handler *handle, char *args, int args_le
     }
 
     // Parse the options
-    hlld_config *config = NULL;
+    struct hlld_config *config = NULL;
     int err = 0;
     if (res == 0) {
         // Make a new config store, copy the current
-        config = malloc(sizeof(hlld_config));
-        memcpy(config, handle->config, sizeof(hlld_config));
+        config = (struct hlld_config*)malloc(sizeof(hlld_config));
+        memcpy(config, handle->config, sizeof(struct hlld_config));
 
         // Parse any options
         char *param = options;
@@ -376,7 +376,7 @@ static void handle_create_cmd(hlld_conn_handler *handle, char *args, int args_le
  * handle_multi_response.
  */
 static void handle_setop_cmd(hlld_conn_handler *handle, char *args, int args_len,
-        int(*setmgr_func)(hlld_setmgr *, char*)) {
+        int(*setmgr_func)(struct hlld_setmgr *, char*)) {
     // If we have no args, complain.
     if (!args) {
         handle_client_err(handle->conn, (char*)&SET_NEEDED, SET_NEEDED_LEN);
@@ -412,8 +412,8 @@ static void handle_clear_cmd(hlld_conn_handler *handle, char *args, int args_len
 // Callback invoked by list command to create an output
 // line for each set. We hold a set handle which we
 // can use to get some info about it
-static void list_set_cb(void *data, char *set_name, hlld_set *set) {
-    set_cb_data *cb_data = data;
+static void list_set_cb(void *data, char *set_name, struct hlld_set *set) {
+    set_cb_data *cb_data = (set_cb_data *)data;
     int res;
 
     // Use the last flush size, attempt to get the latest size.
@@ -434,7 +434,7 @@ static void handle_list_cmd(hlld_conn_handler *handle, char *args, int args_len)
     (void)args_len;
 
     // List all the sets
-    hlld_set_list_head *head;
+    struct hlld_set_list_head *head;
     int res = setmgr_list_sets(handle->mgr, args, &head);
     if (res != 0) {
         INTERNAL_ERROR();
@@ -443,8 +443,8 @@ static void handle_list_cmd(hlld_conn_handler *handle, char *args, int args_len)
 
     // Allocate buffers for the responses
     int num_out = (head->size+2);
-    char** output_bufs = malloc(num_out * sizeof(char*));
-    int* output_bufs_len = malloc(num_out * sizeof(int));
+    char** output_bufs = (char**)malloc(num_out * sizeof(char*));
+    int* output_bufs_len = (int*)malloc(num_out * sizeof(int));
 
     // Setup the START/END lines
     output_bufs[0] = (char*)&START_RESP;
@@ -454,7 +454,7 @@ static void handle_list_cmd(hlld_conn_handler *handle, char *args, int args_len)
 
     // Generate the responses
     char *resp;
-    hlld_set_list *node = head->head;
+    struct hlld_set_list *node = head->head;
     set_cb_data cb_data = {handle->mgr, &resp};
     for (int i=0; i < head->size; i++) {
         res = setmgr_set_cb(handle->mgr, node->set_name, list_set_cb, &cb_data);
@@ -482,9 +482,9 @@ static void handle_list_cmd(hlld_conn_handler *handle, char *args, int args_len)
 // Callback invoked by list command to create an output
 // line for each set. We hold a set handle which we
 // can use to get some info about it
-static void info_set_cb(void *data, char *set_name, hlld_set *set) {
+static void info_set_cb(void *data, char *set_name, struct hlld_set *set) {
     (void)set_name;
-    set_cb_data *cb_data = data;
+    set_cb_data *cb_data = (set_cb_data *)data;
 
     // Use the last flush size, attempt to get the latest size.
     // We do this in-case a list is at the same time as a unmap/delete.
@@ -570,7 +570,7 @@ static void handle_flush_cmd(hlld_conn_handler *handle, char *args, int args_len
     }
 
     // List all the sets
-    hlld_set_list_head *head;
+    struct hlld_set_list_head *head;
     int res = setmgr_list_sets(handle->mgr, NULL, &head);
     if (res != 0) {
         INTERNAL_ERROR();
@@ -579,7 +579,7 @@ static void handle_flush_cmd(hlld_conn_handler *handle, char *args, int args_len
 
     // Flush all, ignore errors since
     // sets might get deleted in the process
-    hlld_set_list *node = head->head;
+    struct hlld_set_list *node = head->head;
     while (node) {
         setmgr_flush_set(handle->mgr, node->set_name);
         node = node->next;
@@ -721,7 +721,7 @@ static conn_cmd_type determine_client_command(char *cmd_buf, int buf_len, char *
  */
 static int buffer_after_terminator(char *buf, int buf_len, char terminator, char **after_term, int *after_len) {
     // Scan for a space
-    char *term_addr = memchr(buf, terminator, buf_len);
+    char *term_addr = (char*)memchr(buf, terminator, buf_len);
     if (!term_addr) {
         *after_term = NULL;
         return -1;

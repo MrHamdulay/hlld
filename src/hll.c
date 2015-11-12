@@ -50,7 +50,7 @@ int hll_init(unsigned char precision, int window_period, int window_precision, h
     // Determine how many registers are needed
     int reg = NUM_REG(precision);
 
-    h->registers = calloc(reg, sizeof(hll_register));
+    h->registers = (hll_register*)calloc(reg, sizeof(hll_register));
 
     return 0;
 }
@@ -63,9 +63,9 @@ int hll_init(unsigned char precision, int window_period, int window_precision, h
  * @arg h The HLL to initialize
  * @return 0 on success
  */
-int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *h) {
+/*int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *h) {
     return -1*precision + (int)bm + (int)h;
-}
+}*/
 
 
 /**
@@ -119,7 +119,7 @@ void hll_register_remove_point(hll_register *r, size_t idx) {
     if (r->size*GROWTH_FACTOR*GROWTH_FACTOR < r->capacity) {
         r->capacity = r->capacity/GROWTH_FACTOR+1;
         assert(r->capacity > r->size);
-        r->points = realloc(r->points, r->capacity*sizeof(hll_point));
+        r->points = (hll_point*)realloc(r->points, r->capacity*sizeof(hll_point));
     }
 }
 
@@ -146,7 +146,7 @@ void hll_register_add_point(hll_t *h, hll_register *r, hll_point p) {
     if(r->size > r->capacity) {
 
         r->capacity = (size_t)(GROWTH_FACTOR * r->capacity + 1);
-        r->points = realloc(r->points, r->capacity*sizeof(hll_point));
+        r->points = (hll_point*)realloc(r->points, r->capacity*sizeof(hll_point));
     }
 
     assert((long long)r->size-1 >= 0);
@@ -199,15 +199,20 @@ void hll_add_hash_at_time(hll_t *h, uint64_t hash, time_t time_added) {
 /*
  * Computes the raw cardinality estimate
  */
-static double hll_raw_estimate(hll_t *h, int *num_zero, int time_length, time_t current_time) {
-    unsigned char precision = h->precision;
+static double hll_raw_estimate_union(hll_t **h, int num_hls, int *num_zero, int time_length, time_t current_time) {
+    unsigned char precision = h[0]->precision;
     int num_reg = NUM_REG(precision);
     double multi = hll_alpha(precision) * num_reg * num_reg;
 
     int reg_val;
     double inv_sum = 0;
     for (int i=0; i < num_reg; i++) {
-        reg_val = hll_get_register(h, i, time_length, current_time);
+        reg_val = 0;
+        for(int j=0; j<num_hls; j++) {
+            int reg = hll_get_register(h[j], i, time_length, current_time);
+            if (reg > reg_val)
+                reg_val = reg;
+        }
         inv_sum += pow(2.0, -1 * reg_val);
         if (!reg_val) *num_zero += 1;
     }
@@ -365,7 +370,8 @@ uint64_t hll_bytes_for_precision(int prec) {
  */
 double hll_size(hll_t *h, int time_length, time_t current_time) {
     int num_zero = 0;
-    double raw_est = hll_raw_estimate(h, &num_zero, time_length, current_time);
+    hll_t *hs[] = {h};
+    double raw_est = hll_raw_estimate_union(hs, 1, &num_zero, time_length, current_time);
 
     // Check if we need to apply bias correction
     int num_reg = NUM_REG(h->precision);
@@ -392,4 +398,34 @@ double hll_size(hll_t *h, int time_length, time_t current_time) {
 double hll_size_total(hll_t *h) {
     time_t ctime = time(NULL);
     return hll_size(h, ctime, ctime);
+}
+
+
+/**
+ * Takes the union of a few sets and returns the cardinality
+ */
+double hll_union_size(hll_t **hs, int num_hs, int time_length, time_t current_time) {
+    int num_zero = 0;
+    double raw_est = hll_raw_estimate_union(hs, num_hs, &num_zero, time_length, current_time);
+
+    // Check if we need to apply bias correction
+    int num_reg = NUM_REG(hs[0]->precision);
+    if (raw_est <= 5 * num_reg) {
+        raw_est -= hll_bias_estimate(hs[0], raw_est);
+    }
+
+    // Check if linear counting should be used
+    double alt_est;
+    if (num_zero) {
+        alt_est = hll_linear_count(hs[0], num_zero);
+    } else {
+        alt_est = raw_est;
+    }
+
+    // Determine which estimate to use
+    if (alt_est <= switchThreshold[hs[0]->precision-4]) {
+        return alt_est;
+    } else {
+        return raw_est;
+    }
 }

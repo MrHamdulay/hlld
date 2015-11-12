@@ -17,19 +17,19 @@
 #define VACUUM_POLL_USEC 500000
 
 /**
- * Wraps a hlld_set to ensure only a single
+ * Wraps a struct hlld_set to ensure only a single
  * writer access it at a time. Tracks the outstanding
  * references, to allow a sane close to take place.
  */
-typedef struct {
+struct hlld_set_wrapper {
     volatile int is_active;         // Set to 0 when we are trying to delete it
     volatile int is_hot;            // Used to mark a set as hot
     volatile int should_delete;     // Used to control deletion
 
-    hlld_set *set;    // The actual set object
+    struct hlld_set *set;    // The actual set object
     pthread_rwlock_t rwlock; // Protects the set
-    hlld_config *custom;   // Custom config to cleanup
-} hlld_set_wrapper;
+    struct hlld_config *custom;   // Custom config to cleanup
+};
 
 /**
  * We use a linked list of setmgr_client
@@ -56,13 +56,13 @@ typedef enum {
 typedef struct set_list {
     unsigned long long vsn;
     delta_type type;
-    hlld_set_wrapper *set;
+    struct hlld_set_wrapper *set;
     struct set_list *next;
 } set_list;
 
 /**
  * We use a a simple form of Multi-Version Concurrency Controll (MVCC)
- * to prevent locking on access to the map of set name -> hlld_set_wrapper.
+ * to prevent locking on access to the map of set name -> struct hlld_set_wrapper.
  *
  * The way it works is we have 2 ART trees, the "primary" and an alternate.
  * All the clients of the set manager have reads go through the primary
@@ -78,7 +78,7 @@ typedef struct set_list {
  *
  */
 struct hlld_setmgr {
-    hlld_config *config;
+    struct hlld_config *config;
 
     int should_run;  // Used to stop the vacuum thread
     pthread_t vacuum_thread;
@@ -98,7 +98,7 @@ struct hlld_setmgr {
     unsigned long long vsn;
     pthread_mutex_t write_lock; // Serializes destructive operations
 
-    // Maps key names -> hlld_set_wrapper
+    // Maps key names -> struct hlld_set_wrapper
     unsigned long long primary_vsn; // This is the version that set_map represents
     art_tree *set_map;
     art_tree *alt_set_map;
@@ -109,7 +109,7 @@ struct hlld_setmgr {
      * taken place, while the vacuum thread has not yet performed the
      * delete. This allows create to return a "Delete in progress".
      */
-    hlld_set_list *pending_deletes;
+    struct hlld_set_list *pending_deletes;
     hlld_spinlock pending_lock;
 
     // Delta lists for non-merged operations
@@ -128,15 +128,15 @@ struct hlld_setmgr {
 static const char FOLDER_PREFIX[] = "hlld.";
 static const int FOLDER_PREFIX_LEN = sizeof(FOLDER_PREFIX) - 1;
 
-static hlld_set_wrapper* find_set(hlld_setmgr *mgr, char *set_name);
-static hlld_set_wrapper* take_set(hlld_setmgr *mgr, char *set_name);
-static void delete_set(hlld_set_wrapper *set);
-static int add_set(hlld_setmgr *mgr, char *set_name, hlld_config *config, int is_hot, int delta);
+static struct hlld_set_wrapper* find_set(struct hlld_setmgr *mgr, char *set_name);
+static struct hlld_set_wrapper* take_set(struct hlld_setmgr *mgr, char *set_name);
+static void delete_set(struct hlld_set_wrapper *set);
+static int add_set(struct hlld_setmgr *mgr, char *set_name, struct hlld_config *config, int is_hot, int delta);
 static int set_map_list_cb(void *data, const unsigned char *key, uint32_t key_len, void *value);
 static int set_map_list_cold_cb(void *data, const unsigned char *key, uint32_t key_len, void *value);
 static int set_map_delete_cb(void *data, const unsigned char *key, uint32_t key_len, void *value);
-static int load_existing_sets(hlld_setmgr *mgr);
-static unsigned long long create_delta_update(hlld_setmgr *mgr, delta_type type, hlld_set_wrapper *set);
+static int load_existing_sets(struct hlld_setmgr *mgr);
+static unsigned long long create_delta_update(struct hlld_setmgr *mgr, delta_type type, struct hlld_set_wrapper *set);
 static void* setmgr_thread_main(void *in);
 
 /**
@@ -147,9 +147,9 @@ static void* setmgr_thread_main(void *in);
  * @arg mgr Output, resulting manager.
  * @return 0 on success.
  */
-int init_set_manager(hlld_config *config, int vacuum, hlld_setmgr **mgr) {
+int init_set_manager(struct hlld_config *config, int vacuum, struct hlld_setmgr **mgr) {
     // Allocate a new object
-    hlld_setmgr *m = *mgr = calloc(1, sizeof(hlld_setmgr));
+    struct hlld_setmgr *m = *mgr = (struct hlld_setmgr*)calloc(1, sizeof(struct hlld_setmgr));
 
     // Copy the config
     m->config = config;
@@ -160,7 +160,7 @@ int init_set_manager(hlld_config *config, int vacuum, hlld_setmgr **mgr) {
     INIT_HLLD_SPIN(&m->pending_lock);
 
     // Allocate storage for the art trees
-    art_tree *trees = calloc(2, sizeof(art_tree));
+    art_tree *trees = (art_tree*)calloc(2, sizeof(art_tree));
     m->set_map = trees;
     m->alt_set_map = trees+1;
 
@@ -200,7 +200,7 @@ int init_set_manager(hlld_config *config, int vacuum, hlld_setmgr **mgr) {
  * @arg mgr The manager to destroy
  * @return 0 on success.
  */
-int destroy_set_manager(hlld_setmgr *mgr) {
+int destroy_set_manager(struct hlld_setmgr *mgr) {
     // Stop the vacuum thread
     mgr->should_run = 0;
     if (mgr->vacuum_thread) pthread_join(mgr->vacuum_thread, NULL);
@@ -246,7 +246,7 @@ int destroy_set_manager(hlld_setmgr *mgr) {
  * state.
  * @arg mgr The manager
  */
-void setmgr_client_checkpoint(hlld_setmgr *mgr) {
+void setmgr_client_checkpoint(struct hlld_setmgr *mgr) {
     // Get a reference to ourself
     pthread_t id = pthread_self();
 
@@ -263,7 +263,7 @@ void setmgr_client_checkpoint(hlld_setmgr *mgr) {
 
     // If we make it here, we are not a client yet
     // so we need to safely add ourself
-    cl = malloc(sizeof(setmgr_client));
+    cl = (setmgr_client*)malloc(sizeof(setmgr_client));
     cl->id = id;
     cl->vsn = mgr->vsn;
 
@@ -282,7 +282,7 @@ void setmgr_client_checkpoint(hlld_setmgr *mgr) {
  * allows the vacuum thread to cleanup garbage state.
  * @arg mgr The manager
  */
-void setmgr_client_leave(hlld_setmgr *mgr) {
+void setmgr_client_leave(struct hlld_setmgr *mgr) {
     // Get a reference to ourself
     pthread_t id = pthread_self();
 
@@ -313,9 +313,9 @@ void setmgr_client_leave(hlld_setmgr *mgr) {
  * @arg set_name The name of the set to flush
  * @return 0 on success. -1 if the set does not exist.
  */
-int setmgr_flush_set(hlld_setmgr *mgr, char *set_name) {
+int setmgr_flush_set(struct hlld_setmgr *mgr, char *set_name) {
     // Get the set
-    hlld_set_wrapper *set = take_set(mgr, set_name);
+    struct hlld_set_wrapper *set = take_set(mgr, set_name);
     if (!set) return -1;
 
     // Acquire the READ lock. We use the read lock
@@ -339,9 +339,9 @@ int setmgr_flush_set(hlld_setmgr *mgr, char *set_name) {
  * * @return 0 on success, -1 if the set does not exist.
  * -2 on internal error.
  */
-int setmgr_set_keys(hlld_setmgr *mgr, char *set_name, char **keys, int num_keys) {
+int setmgr_set_keys(struct hlld_setmgr *mgr, char *set_name, char **keys, int num_keys) {
     // Get the set
-    hlld_set_wrapper *set = take_set(mgr, set_name);
+    struct hlld_set_wrapper *set = take_set(mgr, set_name);
     if (!set) return -1;
 
     // Acquire the READ lock. We use the read lock
@@ -369,9 +369,9 @@ int setmgr_set_keys(hlld_setmgr *mgr, char *set_name, char **keys, int num_keys)
  * @arg est Output pointer, the estimate on success.
  * @return 0 on success, -1 if the set does not exist.
  */
-int setmgr_set_size_total(hlld_setmgr *mgr, char *set_name, uint64_t *est) {
+int setmgr_set_size_total(struct hlld_setmgr *mgr, char *set_name, uint64_t *est) {
     // Get the set
-    hlld_set_wrapper *set = take_set(mgr, set_name);
+    struct hlld_set_wrapper *set = take_set(mgr, set_name);
     if (!set) return -1;
 
     // Acquire the READ lock. We use the read lock
@@ -387,15 +387,57 @@ int setmgr_set_size_total(hlld_setmgr *mgr, char *set_name, uint64_t *est) {
 }
 
 /**
+ * Estimates the size of the union of the sets
+ * @arg set_name The name of the set
+ * @arg est Output pointer, the estimate on success.
+ * @return 0 on success, -1 if the set does not exist.
+ */
+int setmgr_set_union_size(struct hlld_setmgr *mgr, int num_sets, char **set_names, uint64_t *est, uint64_t time_window) {
+    // Get the set
+    struct hlld_set_wrapper **set_wrappers = (struct hlld_set_wrapper**)malloc(sizeof(struct hlld_set_wrapper*)*num_sets);
+    struct hlld_set **sets = (struct hlld_set**)malloc(sizeof(struct hlld_set)*num_sets);
+    int num_sets_exist = 0;
+    for(int i=0; i<num_sets; i++) {
+        set_wrappers[num_sets_exist] = take_set(mgr, set_names[i]);
+        if (set_wrappers[num_sets_exist]) {
+            sets[num_sets_exist] = set_wrappers[num_sets_exist]->set;
+            num_sets_exist++;
+        }
+    }
+    if(num_sets_exist == 0)
+        return -1;
+
+
+    // Acquire the READ lock. We use the read lock
+    // since we can handle concurrent read/writes.
+    for(int i=0; i<num_sets_exist; i++) {
+        pthread_rwlock_rdlock(&set_wrappers[i]->rwlock);
+    }
+
+    // Get the size
+    *est = hset_size_union(sets, num_sets_exist, time_window, time(NULL));
+
+    // Release the lock
+    for(int i=0; i<num_sets_exist; i++) {
+        pthread_rwlock_unlock(&set_wrappers[i]->rwlock);
+    }
+
+    free(set_wrappers);
+    free(sets);
+
+    return 0;
+}
+
+/**
  * Estimates the size of a set in a given time window
  * @arg set_name The name of the set
  * @arg est Output pointer, the estimate on success.
  * @arg time_window Time window we query over
  * @return 0 on success, -1 if the set does not exist.
  */
-int setmgr_set_size(hlld_setmgr *mgr, char *set_name, uint64_t *est, uint64_t time_window) {
+int setmgr_set_size(struct hlld_setmgr *mgr, char *set_name, uint64_t *est, uint64_t time_window) {
     // Get the set
-    hlld_set_wrapper *set = take_set(mgr, set_name);
+    struct hlld_set_wrapper *set = take_set(mgr, set_name);
     if (!set) return -1;
 
     // Acquire the READ lock. We use the read lock
@@ -417,7 +459,7 @@ int setmgr_set_size(hlld_setmgr *mgr, char *set_name, uint64_t *est, uint64_t ti
  * @return 0 on success, -1 if the set already exists.
  * -2 for internal error. -3 if there is a pending delete.
  */
-int setmgr_create_set(hlld_setmgr *mgr, char *set_name, hlld_config *custom_config) {
+int setmgr_create_set(struct hlld_setmgr *mgr, char *set_name, struct hlld_config *custom_config) {
     int res = 0;
     pthread_mutex_lock(&mgr->write_lock);
 
@@ -426,21 +468,23 @@ int setmgr_create_set(hlld_setmgr *mgr, char *set_name, hlld_config *custom_conf
      * -1 if the set is active
      * -3 if delete is pending
      */
-    hlld_set_wrapper *set = find_set(mgr, set_name);
+    struct hlld_set_wrapper *set = find_set(mgr, set_name);
     if (set) {
         res = (set->is_active) ? -1 : -3;
-        goto LEAVE;
+        pthread_mutex_unlock(&mgr->write_lock);
+        return res;
     }
 
     // Scan the pending delete queue
     LOCK_HLLD_SPIN(&mgr->pending_lock);
     if (mgr->pending_deletes) {
-        hlld_set_list *node = mgr->pending_deletes;
+        struct hlld_set_list *node = mgr->pending_deletes;
         while (node) {
             if (!strcmp(node->set_name, set_name)) {
                 res = -3; // Pending delete
                 UNLOCK_HLLD_SPIN(&mgr->pending_lock);
-                goto LEAVE;
+                pthread_mutex_unlock(&mgr->write_lock);
+                return res;
             }
             node = node->next;
         }
@@ -448,14 +492,13 @@ int setmgr_create_set(hlld_setmgr *mgr, char *set_name, hlld_config *custom_conf
     UNLOCK_HLLD_SPIN(&mgr->pending_lock);
 
     // Use a custom config if provided, else the default
-    hlld_config *config = (custom_config) ? custom_config : mgr->config;
+    struct hlld_config *config = (custom_config) ? custom_config : mgr->config;
 
     // Add the set
     if (add_set(mgr, set_name, config, 1, 1)) {
         res = -2; // Internal error
     }
 
-LEAVE:
     pthread_mutex_unlock(&mgr->write_lock);
     return res;
 }
@@ -466,13 +509,13 @@ LEAVE:
  * @arg set_name The name of the set to delete
  * @return 0 on success, -1 if the set does not exist.
  */
-int setmgr_drop_set(hlld_setmgr *mgr, char *set_name) {
+int setmgr_drop_set(struct hlld_setmgr *mgr, char *set_name) {
     // Lock the deletion
     int res = 0;
     pthread_mutex_lock(&mgr->write_lock);
 
     // Get the set
-    hlld_set_wrapper *set = take_set(mgr, set_name);
+    struct hlld_set_wrapper *set = take_set(mgr, set_name);
     if (!set) {
         res = -1;
         goto LEAVE;
@@ -496,12 +539,12 @@ LEAVE:
  * @return 0 on success, -1 if the set does not exist, -2
  * if the set is not proxied.
  */
-int setmgr_clear_set(hlld_setmgr *mgr, char *set_name) {
+int setmgr_clear_set(struct hlld_setmgr *mgr, char *set_name) {
     int res = 0;
     pthread_mutex_lock(&mgr->write_lock);
 
     // Get the set
-    hlld_set_wrapper *set = take_set(mgr, set_name);
+    struct hlld_set_wrapper *set = take_set(mgr, set_name);
     if (!set) {
         res = -1;
         goto LEAVE;
@@ -534,9 +577,9 @@ LEAVE:
  * @arg set_name The name of the set to delete
  * @return 0 on success, -1 if the set does not exist.
  */
-int setmgr_unmap_set(hlld_setmgr *mgr, char *set_name) {
+int setmgr_unmap_set(struct hlld_setmgr *mgr, char *set_name) {
     // Get the set
-    hlld_set_wrapper *set = take_set(mgr, set_name);
+    struct hlld_set_wrapper *set = take_set(mgr, set_name);
     if (!set) return -1;
 
     // Bail if we are in memory only
@@ -565,9 +608,9 @@ LEAVE:
  * @arg head Output, sets to the address of the list header
  * @return 0 on success.
  */
-int setmgr_list_sets(hlld_setmgr *mgr, char *prefix, hlld_set_list_head **head) {
+int setmgr_list_sets(struct hlld_setmgr *mgr, char *prefix, struct hlld_set_list_head **head) {
     // Allocate the head
-    hlld_set_list_head *h = *head = calloc(1, sizeof(hlld_set_list_head));
+    struct hlld_set_list_head *h = *head = (struct hlld_set_list_head*)calloc(1, sizeof(struct hlld_set_list_head));
 
     // Check if we should use the prefix
     int prefix_len = 0;
@@ -581,7 +624,7 @@ int setmgr_list_sets(hlld_setmgr *mgr, char *prefix, hlld_set_list_head **head) 
     if (mgr->primary_vsn == mgr->vsn) return 0;
 
     set_list *current = mgr->delta;
-    hlld_set_wrapper *s;
+    struct hlld_set_wrapper *s;
     while (current) {
         // Check if this is a match (potential prefix)
         if (current->type == CREATE) {
@@ -610,9 +653,9 @@ int setmgr_list_sets(hlld_setmgr *mgr, char *prefix, hlld_set_list_head **head) 
  * @arg head Output, sets to the address of the list header
  * @return 0 on success.
  */
-int setmgr_list_cold_sets(hlld_setmgr *mgr, hlld_set_list_head **head) {
+int setmgr_list_cold_sets(struct hlld_setmgr *mgr, struct hlld_set_list_head **head) {
     // Allocate the head of a new hashmap
-    hlld_set_list_head *h = *head = calloc(1, sizeof(hlld_set_list_head));
+    struct hlld_set_list_head *h = *head = (struct hlld_set_list_head*)calloc(1, sizeof(struct hlld_set_list_head));
 
     // Scan for the cold sets. Ignore deltas, since they are either
     // new (e.g. hot), or being deleted anyways.
@@ -629,9 +672,9 @@ int setmgr_list_cold_sets(hlld_setmgr *mgr, hlld_set_list_head **head) {
  * It should be used to read metrics, size information, etc.
  * @return 0 on success, -1 if the set does not exist.
  */
-int setmgr_set_cb(hlld_setmgr *mgr, char *set_name, set_cb cb, void* data) {
+int setmgr_set_cb(struct hlld_setmgr *mgr, char *set_name, set_cb cb, void* data) {
     // Get the set
-    hlld_set_wrapper *set = take_set(mgr, set_name);
+    struct hlld_set_wrapper *set = take_set(mgr, set_name);
     if (!set) return -1;
 
     // Callback
@@ -643,8 +686,8 @@ int setmgr_set_cb(hlld_setmgr *mgr, char *set_name, set_cb cb, void* data) {
 /**
  * Convenience method to cleanup a set list.
  */
-void setmgr_cleanup_list(hlld_set_list_head *head) {
-    hlld_set_list *next, *current = head->head;
+void setmgr_cleanup_list(struct hlld_set_list_head *head) {
+    struct hlld_set_list *next, *current = head->head;
     while (current) {
         next = current->next;
         free(current->set_name);
@@ -658,9 +701,9 @@ void setmgr_cleanup_list(hlld_set_list_head *head) {
 /**
  * Searches the primary tree and the delta list for a set
  */
-static hlld_set_wrapper* find_set(hlld_setmgr *mgr, char *set_name) {
+static struct hlld_set_wrapper* find_set(struct hlld_setmgr *mgr, char *set_name) {
     // Search the tree first
-    hlld_set_wrapper *set = art_search(mgr->set_map, (unsigned char*)set_name, strlen(set_name)+1);
+    struct hlld_set_wrapper *set = (struct hlld_set_wrapper*)art_search(mgr->set_map, (unsigned char*)set_name, strlen(set_name)+1);
 
     // If we found the set, check if it is active
     if (set) return set;
@@ -691,8 +734,8 @@ static hlld_set_wrapper* find_set(hlld_setmgr *mgr, char *set_name) {
 /**
  * Gets the hlld set in a thread safe way.
  */
-static hlld_set_wrapper* take_set(hlld_setmgr *mgr, char *set_name) {
-    hlld_set_wrapper *set = find_set(mgr, set_name);
+static struct hlld_set_wrapper* take_set(struct hlld_setmgr *mgr, char *set_name) {
+    struct hlld_set_wrapper *set = find_set(mgr, set_name);
     return (set && set->is_active) ? set : NULL;
 }
 
@@ -700,7 +743,7 @@ static hlld_set_wrapper* take_set(hlld_setmgr *mgr, char *set_name) {
  * Invoked to cleanup a set once we
  * have hit 0 remaining references.
  */
-static void delete_set(hlld_set_wrapper *set) {
+static void delete_set(struct hlld_set_wrapper *set) {
     // Delete or Close the set
     if (set->should_delete)
         hset_delete(set->set);
@@ -731,9 +774,9 @@ static void delete_set(hlld_set_wrapper *set) {
  * the primary tree.
  * @return 0 on success, -1 on error
  */
-static int add_set(hlld_setmgr *mgr, char *set_name, hlld_config *config, int is_hot, int delta) {
+static int add_set(struct hlld_setmgr *mgr, char *set_name, struct hlld_config *config, int is_hot, int delta) {
     // Create the set
-    hlld_set_wrapper *set = calloc(1, sizeof(hlld_set_wrapper));
+    struct hlld_set_wrapper *set = (struct hlld_set_wrapper*)calloc(1, sizeof(struct hlld_set_wrapper));
     set->is_active = 1;
     set->is_hot = is_hot;
     set->should_delete = 0;
@@ -768,14 +811,14 @@ static int add_set(hlld_setmgr *mgr, char *set_name, hlld_config *config, int is
 static int set_map_list_cb(void *data, const unsigned char *key, uint32_t key_len, void *value) {
     (void)key_len;
     // set out the non-active nodes
-    hlld_set_wrapper *set = value;
+    struct hlld_set_wrapper *set = (struct hlld_set_wrapper*)value;
     if (!set->is_active) return 0;
 
     // Cast the inputs
-    hlld_set_list_head *head = data;
+    struct hlld_set_list_head *head = (struct hlld_set_list_head*)data;
 
     // Allocate a new entry
-    hlld_set_list *node = malloc(sizeof(hlld_set_list));
+    struct hlld_set_list *node = (struct hlld_set_list*)malloc(sizeof(struct hlld_set_list));
 
     // Setup
     node->set_name = strdup((char*)key);
@@ -803,8 +846,8 @@ static int set_map_list_cb(void *data, const unsigned char *key, uint32_t key_le
 static int set_map_list_cold_cb(void *data, const unsigned char *key, uint32_t key_len, void *value) {
     (void)key_len;
     // Cast the inputs
-    hlld_set_list_head *head = data;
-    hlld_set_wrapper *set = value;
+    struct hlld_set_list_head *head = (struct hlld_set_list_head*)data;
+    struct hlld_set_wrapper *set = (struct hlld_set_wrapper*)value;
 
     // Check if hot, turn off and skip
     if (set->is_hot) {
@@ -818,7 +861,7 @@ static int set_map_list_cold_cb(void *data, const unsigned char *key, uint32_t k
     }
 
     // Allocate a new entry
-    hlld_set_list *node = malloc(sizeof(hlld_set_list));
+    struct hlld_set_list *node = (struct hlld_set_list*)malloc(sizeof(struct hlld_set_list));
 
     // Setup
     node->set_name = strdup((char*)key);
@@ -838,7 +881,7 @@ static int set_map_delete_cb(void *data, const unsigned char *key, uint32_t key_
     (void)data;
     (void)key;
     (void)key_len;
-    hlld_set_wrapper *set = value;
+    struct hlld_set_wrapper *set = (struct hlld_set_wrapper*)value;
     delete_set(set);
     return 0;
 }
@@ -869,7 +912,7 @@ static int set_hlld_folders(CONST_DIRENT_T *d) {
  * Loads the existing sets. This is not thread
  * safe and assumes that we are being initialized.
  */
-static int load_existing_sets(hlld_setmgr *mgr) {
+static int load_existing_sets(struct hlld_setmgr *mgr) {
     struct dirent **namelist;
     int num;
 
@@ -903,8 +946,8 @@ static int load_existing_sets(hlld_setmgr *mgr) {
  * @arg set The set that is affected
  * @return The new version we created
  */
-static unsigned long long create_delta_update(hlld_setmgr *mgr, delta_type type, hlld_set_wrapper *set) {
-    set_list *delta = malloc(sizeof(set_list));
+static unsigned long long create_delta_update(struct hlld_setmgr *mgr, delta_type type, struct hlld_set_wrapper *set) {
+    set_list *delta = (set_list*)malloc(sizeof(set_list));
     delta->vsn = ++mgr->vsn;
     delta->type = type;
     delta->set = set;
@@ -917,7 +960,7 @@ static unsigned long long create_delta_update(hlld_setmgr *mgr, delta_type type,
  * Merges changes into the alternate tree from the delta lists
  * Safety: Safe ONLY if no other thread is using alt_set_map
  */
-static void merge_old_versions(hlld_setmgr *mgr, set_list *delta, unsigned long long min_vsn) {
+static void merge_old_versions(struct hlld_setmgr *mgr, set_list *delta, unsigned long long min_vsn) {
     // Handle older delta first (bottom up)
     if (delta->next) merge_old_versions(mgr, delta->next, min_vsn);
 
@@ -925,7 +968,7 @@ static void merge_old_versions(hlld_setmgr *mgr, set_list *delta, unsigned long 
     if (delta->vsn > min_vsn) return;
 
     // Handle current update
-    hlld_set_wrapper *s = delta->set;
+    struct hlld_set_wrapper *s = delta->set;
     switch (delta->type) {
         case CREATE:
             art_insert(mgr->alt_set_map, (unsigned char*)s->set->set_name, strlen(s->set->set_name)+1, s);
@@ -942,14 +985,14 @@ static void merge_old_versions(hlld_setmgr *mgr, set_list *delta, unsigned long 
 /**
  * Updates the pending deletes list with a list of pending deletes
  */
-static void mark_pending_deletes(hlld_setmgr *mgr, unsigned long long min_vsn) {
-    hlld_set_list *tmp, *pending = NULL;
+static void mark_pending_deletes(struct hlld_setmgr *mgr, unsigned long long min_vsn) {
+    struct hlld_set_list *tmp, *pending = NULL;
 
     // Add each delete
     set_list *delta = mgr->delta;
     while (delta) {
         if (delta->vsn <= min_vsn && delta->type == DELETE) {
-            tmp = malloc(sizeof(hlld_set_list));
+            tmp = (struct hlld_set_list*)malloc(sizeof(struct hlld_set_list));
             tmp->set_name = strdup(delta->set->set->set_name);
             tmp->next = pending;
             pending = tmp;
@@ -965,9 +1008,9 @@ static void mark_pending_deletes(hlld_setmgr *mgr, unsigned long long min_vsn) {
 /**
  * Clears the pending deletes
  */
-static void clear_pending_deletes(hlld_setmgr *mgr) {
+static void clear_pending_deletes(struct hlld_setmgr *mgr) {
     // Get a reference to the head
-    hlld_set_list *pending = mgr->pending_deletes;
+    struct hlld_set_list *pending = mgr->pending_deletes;
     if (!pending) return;
 
     // Set the pending list to NULL safely
@@ -976,7 +1019,7 @@ static void clear_pending_deletes(hlld_setmgr *mgr) {
     UNLOCK_HLLD_SPIN(&mgr->pending_lock);
 
     // Free the nodes
-    hlld_set_list *next;
+    struct hlld_set_list *next;
     while (pending) {
         free(pending->set_name);
         next = pending->next;
@@ -989,7 +1032,7 @@ static void clear_pending_deletes(hlld_setmgr *mgr) {
  * Swap the alternate / primary maps, sets the primary_vsn
  * This is always safe, since its just a pointer swap.
  */
-static void swap_set_maps(hlld_setmgr *mgr, unsigned long long primary_vsn) {
+static void swap_set_maps(struct hlld_setmgr *mgr, unsigned long long primary_vsn) {
     art_tree *tmp = mgr->set_map;
     mgr->set_map = mgr->alt_set_map;
     mgr->alt_set_map = tmp;
@@ -1024,7 +1067,7 @@ static set_list* remove_delta_versions(set_list *init, set_list **ref, unsigned 
  *
  * Safety: Same as remove_delta_versions
  */
-static void delete_old_versions(hlld_setmgr *mgr, unsigned long long min_vsn) {
+static void delete_old_versions(struct hlld_setmgr *mgr, unsigned long long min_vsn) {
     // Get the merged in pending ops, lock to avoid a race
     pthread_mutex_lock(&mgr->write_lock);
     set_list *old = remove_delta_versions(mgr->delta, &mgr->delta, min_vsn);
@@ -1044,7 +1087,7 @@ static void delete_old_versions(hlld_setmgr *mgr, unsigned long long min_vsn) {
  * Determines the minimum visible version from the client list
  * Safety: Always safe
  */
-static unsigned long long client_min_vsn(hlld_setmgr *mgr) {
+static unsigned long long client_min_vsn(struct hlld_setmgr *mgr) {
     // Determine the minimum version
     unsigned long long thread_vsn, min_vsn = mgr->vsn;
     for (setmgr_client *cl=mgr->clients; cl != NULL; cl=cl->next) {
@@ -1060,7 +1103,7 @@ static unsigned long long client_min_vsn(hlld_setmgr *mgr) {
  * that version. This can be used as a non-locking
  * syncronization mechanism.
  */
-static void version_barrier(hlld_setmgr *mgr) {
+static void version_barrier(struct hlld_setmgr *mgr) {
     // Create a new delta
     pthread_mutex_lock(&mgr->write_lock);
     unsigned long long vsn = create_delta_update(mgr, BARRIER, NULL);
@@ -1081,7 +1124,7 @@ static void version_barrier(hlld_setmgr *mgr) {
  */
 static void* setmgr_thread_main(void *in) {
     // Extract our arguments
-    hlld_setmgr *mgr = in;
+    struct hlld_setmgr *mgr = (struct hlld_setmgr*)in;
     unsigned long long min_vsn, mgr_vsn;
     while (mgr->should_run) {
         // Do nothing if there is no changes
@@ -1170,7 +1213,7 @@ static void* setmgr_thread_main(void *in) {
  * version. It is generally unsafe to use in hlld,
  * but can be used in an embeded or test environment.
  */
-void setmgr_vacuum(hlld_setmgr *mgr) {
+void setmgr_vacuum(struct hlld_setmgr *mgr) {
     unsigned long long vsn = mgr->vsn;
     merge_old_versions(mgr, mgr->delta, vsn);
     swap_set_maps(mgr, vsn);

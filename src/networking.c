@@ -11,8 +11,13 @@
 #ifdef __MACH__
 #define EV_USE_KQUEUE 1
 #endif
+
 #include "ev.c"
 
+#include <assert.h>
+#include <strings.h>
+#include <errno.h>
+#include <stdio.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -129,7 +134,7 @@ struct conn_info {
  * stack.
  */
 struct hlld_networking {
-    hlld_config *config;
+    struct hlld_config *config;
     void *mgr;
 
     int ev_mode;
@@ -272,14 +277,14 @@ static int setup_udp_listener(hlld_networking *netconf) {
  * @arg mgr The manager to pass up to the connection handlers
  * @arg netconf Output. The configuration for the networking stack.
  */
-int init_networking(hlld_config *config, void *mgr, hlld_networking **netconf_out) {
+int init_networking(struct hlld_config *config, void *mgr, hlld_networking **netconf_out) {
     // Make the netconf structure
-    hlld_networking *netconf = calloc(1, sizeof(struct hlld_networking));
+    hlld_networking *netconf = (hlld_networking*)calloc(1, sizeof(struct hlld_networking));
 
     // Initialize
     netconf->config = config;
     netconf->mgr = mgr;
-    netconf->workers = calloc(config->worker_threads, sizeof(worker_ev_userdata*));
+    netconf->workers = (worker_ev_userdata**)calloc(config->worker_threads, sizeof(worker_ev_userdata*));
     if (!netconf->workers) {
         free(netconf);
         perror("Failed to calloc() for worker threads");
@@ -344,11 +349,11 @@ int init_networking(hlld_config *config, void *mgr, hlld_networking **netconf_ou
  */
 static void handle_new_client(ev_loop *lp, ev_io *watcher, int ready_events) {
     // Get the network configuration
-    hlld_networking *netconf = ev_userdata(lp);
+    hlld_networking *netconf = (hlld_networking*)ev_userdata(lp);
 
     // Accept the client connection
     struct sockaddr_in client_addr;
-    int client_addr_len = sizeof(client_addr);
+    socklen_t client_addr_len = sizeof(client_addr);
     int client_fd = accept(watcher->fd,
                         (struct sockaddr*)&client_addr,
                         &client_addr_len);
@@ -442,7 +447,7 @@ static int read_client_data(conn_info *conn) {
  */
 static void handle_client_writebuf(ev_loop *lp, ev_io *watcher, int ready_events) {
     // Get the associated connection struct
-    conn_info *conn = watcher->data;
+    conn_info *conn = (conn_info*)watcher->data;
 
     // Bail if inactive
     if (!conn->active) return;
@@ -485,8 +490,8 @@ static void handle_client_writebuf(ev_loop *lp, ev_io *watcher, int ready_events
  */
 static void invoke_event_handler(ev_loop *lp, ev_io *watcher, int ready_events) {
     // Get the user data
-    worker_ev_userdata *data = ev_userdata(lp);
-    conn_info *conn = watcher->data;
+    worker_ev_userdata *data = (worker_ev_userdata *)ev_userdata(lp);
+    conn_info *conn = (conn_info *)watcher->data;
 
     // Bail if inactive
     if (!conn->active) return;
@@ -500,7 +505,7 @@ static void invoke_event_handler(ev_loop *lp, ev_io *watcher, int ready_events) 
     // Prepare to invoke the handler
     hlld_conn_handler handle;
     handle.config = data->netconf->config;
-    handle.mgr = data->netconf->mgr;
+    handle.mgr = (hlld_setmgr*)data->netconf->mgr;
     handle.conn = conn;
 
     // Reschedule the watcher, unless it's non-active now
@@ -514,7 +519,7 @@ static void invoke_event_handler(ev_loop *lp, ev_io *watcher, int ready_events) 
  */
 static void handle_worker_notification(ev_loop *lp, ev_io *watcher, int ready_events) {
     // Get the user data
-    worker_ev_userdata *data = ev_userdata(lp);
+    worker_ev_userdata *data = (worker_ev_userdata *)ev_userdata(lp);
 
     // Attempt to read a single character from the pipe
     char cmd;
@@ -555,12 +560,12 @@ static void handle_worker_notification(ev_loop *lp, ev_io *watcher, int ready_ev
  */
 static void handle_periodic_timeout(ev_loop *lp, ev_timer *t, int ready_events) {
     // Get the user data
-    worker_ev_userdata *data = ev_userdata(lp);
+    worker_ev_userdata *data = (worker_ev_userdata *)ev_userdata(lp);
 
     // Prepare to invoke the handler
     hlld_conn_handler handle;
     handle.config = data->netconf->config;
-    handle.mgr = data->netconf->mgr;
+    handle.mgr = (hlld_setmgr*)data->netconf->mgr;
     handle.conn = NULL;
 
     // Invoke the connection handler layer
@@ -793,7 +798,7 @@ static int send_client_response_buffered(conn_info *conn, char **response_buffer
 
 static int send_client_response_direct(conn_info *conn, char **response_buffers, int *buf_sizes, int num_bufs) {
     // Stack allocate the iovectors
-    struct iovec *vectors = alloca(num_bufs * sizeof(struct iovec));
+    struct iovec *vectors = (struct iovec*)alloca(num_bufs * sizeof(struct iovec));
 
     // Setup all the pointers
     ssize_t total_bytes = 0;
@@ -871,7 +876,7 @@ int extract_to_terminator(hlld_conn_info *conn, char terminator, char **buf, int
          * the buffer, and then from the start of the buffer to
          * the write cursor.
         */
-        term_addr = memchr(conn->input.buffer+conn->input.read_cursor,
+        term_addr = (char*)memchr(conn->input.buffer+conn->input.read_cursor,
                            terminator,
                            conn->input.buf_size - conn->input.read_cursor);
 
@@ -887,7 +892,7 @@ int extract_to_terminator(hlld_conn_info *conn, char terminator, char **buf, int
         }
 
         // Wrap around
-        term_addr = memchr(conn->input.buffer,
+        term_addr = (char*)memchr(conn->input.buffer,
                            terminator,
                            conn->input.write_cursor);
 
@@ -898,7 +903,7 @@ int extract_to_terminator(hlld_conn_info *conn, char terminator, char **buf, int
             int start_size = term_addr - conn->input.buffer + 1;
             int end_size = conn->input.buf_size - conn->input.read_cursor;
             *buf_len = start_size + end_size;
-            *buf = malloc(*buf_len);
+            *buf = (char*)malloc(*buf_len);
 
             // Copy from the read cursor to the end
             memcpy(*buf, conn->input.buffer+conn->input.read_cursor, end_size);
@@ -915,7 +920,7 @@ int extract_to_terminator(hlld_conn_info *conn, char terminator, char **buf, int
         /*
          * We need to scan from the read cursor to write buffer.
          */
-        term_addr = memchr(conn->input.buffer+conn->input.read_cursor,
+        term_addr = (char*)memchr(conn->input.buffer+conn->input.read_cursor,
                            terminator,
                            conn->input.write_cursor - conn->input.read_cursor);
 
@@ -984,7 +989,7 @@ static int set_client_sockopts(int client_fd) {
  */
 static conn_info* get_conn() {
     // Allocate space
-    conn_info *conn = malloc(sizeof(conn_info));
+    conn_info *conn = (conn_info *)malloc(sizeof(conn_info));
 
     // Setup variables
     conn->active = 1;
@@ -1010,7 +1015,7 @@ static void circbuf_init(circular_buffer *buf) {
     buf->read_cursor = 0;
     buf->write_cursor = 0;
     buf->buf_size = INIT_CONN_BUF_SIZE * sizeof(char);
-    buf->buffer = malloc(buf->buf_size);
+    buf->buffer = (char*)malloc(buf->buf_size);
 }
 
 // Frees a buffer
@@ -1033,7 +1038,7 @@ static uint64_t circbuf_avail_buf(circular_buffer *buf) {
 // Grows the circular buffer to make room for more data
 static void circbuf_grow_buf(circular_buffer *buf) {
     int new_size = buf->buf_size * CONN_BUF_MULTIPLIER * sizeof(char);
-    char *new_buf = malloc(new_size);
+    char *new_buf = (char*)malloc(new_size);
     int bytes_written = 0;
 
     // Check if the write has wrapped around

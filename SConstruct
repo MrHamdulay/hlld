@@ -1,15 +1,15 @@
 import platform
 plat = platform.system()
 
-envmurmur = Environment(CPPPATH = ['deps/murmurhash/'], CPPFLAGS="-fno-exceptions -O2")
+envmurmur = Environment(CC='clang', CXX='clang++', CPPPATH = ['deps/murmurhash/'], CPPFLAGS="-fno-exceptions -O2")
 murmur = envmurmur.Library('murmur', Glob("deps/murmurhash/*.cpp"))
 
-envinih = Environment(CPATH = ['deps/inih/'], CFLAGS="-O2")
+envinih = Environment(CC='gcc-4.9', CXX='g++-4.9', CPATH = ['deps/inih/'], CFLAGS="-O2")
 inih = envinih.Library('inih', Glob("deps/inih/*.c"))
 
-env_with_err = Environment(CCFLAGS = '-g -std=c99 -D_GNU_SOURCE -Wall -Wextra -Werror -O2 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/')
-env_without_unused_err = Environment(CCFLAGS = '-g -std=c99 -D_GNU_SOURCE -Wall -Wextra -Wno-unused-function -Wno-unused-result -Werror -O2 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/')
-env_without_err = Environment(CCFLAGS = '-g -std=c99 -D_GNU_SOURCE -O2 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/')
+env_with_err = Environment(CC='g++-4.9', CXX='g++-4.9', CFLAGS='', CXXFLAGS='-std=c++11', CCFLAGS = '-g -D_GNU_SOURCE -Wall -Wextra -Werror -O2 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/ -Igen-cpp/')
+env_without_unused_err = Environment(CC='g++-4.9', CXX='g++-4.9', CFLAGS='', CXXFLAGS='-std=c++11', CCFLAGS = '-g -D_GNU_SOURCE -Wall -Wextra -Wno-unused-function -Wno-unused-result -Werror -O2 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/ -Igen-cpp/')
+env_without_err = Environment(CC='g++-4.9', CXX='g++-4.9', CFLAGS='', CXXFLAGS='-std=c++11', CCFLAGS = '-g -D_GNU_SOURCE -O2 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/ -Igen-cpp/')
 
 objs =  env_with_err.Object('src/config', 'src/config.c') + \
         env_with_err.Object('src/convert', 'src/convert.c') + \
@@ -22,10 +22,15 @@ objs =  env_with_err.Object('src/config', 'src/config.c') + \
         env_with_err.Object('src/serialize', 'src/serialize.c') + \
         env_without_err.Object('src/networking', 'src/networking.c') + \
         env_with_err.Object('src/conn_handler', 'src/conn_handler.c') + \
+        env_with_err.Object('src/art', 'src/art.c') + \
         env_with_err.Object('src/background', 'src/background.c') + \
-        env_with_err.Object('src/art', 'src/art.c')
+        env_without_err.Object('src/thrift_server', 'src/thrift_server.cpp') + \
+        env_without_err.Object('gen-cpp/sliding-hyper_types', 'gen-cpp/sliding-hyper_types.cpp') + \
+        env_without_err.Object('gen-cpp/SlidingHyperService', 'gen-cpp/SlidingHyperService.cpp')
+        #env_without_err.Object('deps/libev/ev', 'deps/libev/ev.c')
 
-libs = ["pthread", murmur, inih, "m"]
+
+libs = ["pthread", murmur, inih, "m", "thrift"]
 if plat == 'Linux':
    libs.append("rt")
 
@@ -36,7 +41,7 @@ if plat == "Darwin":
 else:
     test = env_without_unused_err.Program('test_runner', objs + Glob("tests/runner.c"), LIBS=libs + ["check"])
 
-bench_obj = Object("bench", "bench.c", CCFLAGS="-std=c99 -O2")
+bench_obj = Object("bench", "bench.c", CXXFLAGS='-std=c++11', CCFLAGS=" -O2")
 Program('bench', bench_obj, LIBS=["pthread"])
 
 # By default, only compile hlld

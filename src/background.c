@@ -26,7 +26,7 @@ static int timediff_msec(struct timeval *t1, struct timeval *t2);
 static void* flush_thread_main(void *in);
 static void* unmap_thread_main(void *in);
 typedef struct {
-    hlld_config *config;
+    struct hlld_config *config;
     hlld_setmgr *mgr;
     int *should_run;
 } background_thread_args;
@@ -36,13 +36,13 @@ typedef struct {
  * to the thread, and free the memory.
  */
 # define PACK_ARGS() {                  \
-    args = malloc(sizeof(background_thread_args));  \
+    args = (background_thread_args *)malloc(sizeof(background_thread_args));  \
     args->config = config;              \
     args->mgr = mgr;                    \
     args->should_run = should_run;      \
 }
 # define UNPACK_ARGS() {                \
-    background_thread_args *args = in;  \
+    background_thread_args *args = (background_thread_args *)in;  \
     config = args->config;              \
     mgr = args->mgr;                    \
     should_run = args->should_run;      \
@@ -59,7 +59,7 @@ typedef struct {
  * @arg t The output thread
  * @return 1 if the thread was started
  */
-int start_flush_thread(hlld_config *config, hlld_setmgr *mgr, int *should_run, pthread_t *t) {
+int start_flush_thread(struct hlld_config *config, hlld_setmgr *mgr, int *should_run, pthread_t *t) {
     // Return if we are not scheduled
     if(config->flush_interval <= 0) {
         return 0;
@@ -82,7 +82,7 @@ int start_flush_thread(hlld_config *config, hlld_setmgr *mgr, int *should_run, p
  * @arg t The output thread
  * @return 1 if the thread was started
  */
-int start_cold_unmap_thread(hlld_config *config, hlld_setmgr *mgr, int *should_run, pthread_t *t) {
+int start_cold_unmap_thread(struct hlld_config *config, hlld_setmgr *mgr, int *should_run, pthread_t *t) {
     // Return if we are not scheduled
     if(config->cold_interval <= 0) {
         return 0;
@@ -97,7 +97,7 @@ int start_cold_unmap_thread(hlld_config *config, hlld_setmgr *mgr, int *should_r
 
 
 static void* flush_thread_main(void *in) {
-    hlld_config *config;
+    struct hlld_config *config;
     hlld_setmgr *mgr;
     int *should_run;
     UNPACK_ARGS();
@@ -117,7 +117,7 @@ static void* flush_thread_main(void *in) {
 
             // List all the sets
             syslog(LOG_INFO, "Scheduled flush started.");
-            hlld_set_list_head *head;
+            struct hlld_set_list_head *head;
             int res = setmgr_list_sets(mgr, NULL, &head);
             if (res != 0) {
                 syslog(LOG_WARNING, "Failed to list sets for flushing!");
@@ -126,7 +126,7 @@ static void* flush_thread_main(void *in) {
 
             // Flush all, ignore errors since
             // sets might get deleted in the process
-            hlld_set_list *node = head->head;
+            struct hlld_set_list *node = head->head;
             unsigned int cmds = 0;
             while (node) {
                 setmgr_flush_set(mgr, node->set_name);
@@ -146,7 +146,7 @@ static void* flush_thread_main(void *in) {
 }
 
 static void* unmap_thread_main(void *in) {
-    hlld_config *config;
+    struct hlld_config *config;
     hlld_setmgr *mgr;
     int *should_run;
     UNPACK_ARGS();
@@ -166,14 +166,14 @@ static void* unmap_thread_main(void *in) {
 
             // List the cold sets
             syslog(LOG_INFO, "Cold unmap started.");
-            hlld_set_list_head *head;
+            struct hlld_set_list_head *head;
             int res = setmgr_list_cold_sets(mgr, &head);
             if (res != 0) {
                 continue;
             }
 
             // Close the sets, save memory
-            hlld_set_list *node = head->head;
+            struct hlld_set_list *node = head->head;
             unsigned int cmds = 0;
             while (node) {
                 syslog(LOG_DEBUG, "Unmapping set '%s' for being cold.", node->set_name);

@@ -31,7 +31,7 @@ static const char* CONFIG_FILENAME = "config.ini";
 /*
  * Static delarations
  */
-static int thread_safe_fault(hlld_set *f);
+static int thread_safe_fault(struct hlld_set *f);
 static int timediff_msec(struct timeval *t1, struct timeval *t2);
 
 static int filter_out_special(CONST_DIRENT_T *d);
@@ -48,9 +48,9 @@ extern void MurmurHash3_x64_128(const void * key, const int len, const uint32_t 
  * @arg set Output parameter, the new set
  * @return 0 on success
  */
-int init_set(hlld_config *config, char *set_name, int discover, hlld_set **set) {
+int init_set(struct hlld_config *config, char *set_name, int discover, struct hlld_set **set) {
     // Allocate the buffers
-    hlld_set *s = *set = calloc(1, sizeof(hlld_set));
+    struct hlld_set *s = *set = (struct hlld_set*)calloc(1, sizeof(struct hlld_set));
 
     // Initialize
     s->is_dirty = 1;
@@ -121,7 +121,7 @@ int init_set(hlld_config *config, char *set_name, int discover, hlld_set **set) 
  * @arg set The set to destroy
  * @return 0 on success
  */
-int destroy_set(hlld_set *set) {
+int destroy_set(struct hlld_set *set) {
     // Close first
     hset_close(set);
 
@@ -138,7 +138,7 @@ int destroy_set(hlld_set *set) {
  * @arg set The set
  * @return A reference to the counters of a set
  */
-set_counters* hset_counters(hlld_set *set) {
+set_counters* hset_counters(struct hlld_set *set) {
     return &set->counters;
 }
 
@@ -148,7 +148,7 @@ set_counters* hset_counters(hlld_set *set) {
  * @notes Thread safe.
  * @return 0 if in-memory, 1 if proxied.
  */
-int hset_is_proxied(hlld_set *set) {
+int hset_is_proxied(struct hlld_set *set) {
     return set->is_proxied;
 }
 
@@ -158,7 +158,7 @@ int hset_is_proxied(hlld_set *set) {
  * @arg set The set to close
  * @return 0 on success.
  */
-int hset_flush(hlld_set *set) {
+int hset_flush(struct hlld_set *set) {
     // Only do things if we are non-proxied
     if (set->is_proxied)
         return 0;
@@ -206,7 +206,7 @@ int hset_flush(hlld_set *set) {
  * @arg set The set to close
  * @return 0 on success.
  */
-int hset_close(hlld_set *set) {
+int hset_close(struct hlld_set *set) {
     // Acquire lock
     pthread_mutex_lock(&set->hll_lock);
 
@@ -228,7 +228,7 @@ int hset_close(hlld_set *set) {
  * @arg set The set to delete
  * @return 0 on success.
  */
-int hset_delete(hlld_set *set) {
+int hset_delete(struct hlld_set *set) {
     // Close first
     hset_close(set);
 
@@ -270,7 +270,7 @@ int hset_delete(hlld_set *set) {
  * @arg key The key to add
  * @return 0 on success.
  */
-int hset_add(hlld_set *set, char *key) {
+int hset_add(struct hlld_set *set, char *key) {
     if (set->is_proxied) {
         if (thread_safe_fault(set) != 0) return -1;
     }
@@ -300,7 +300,7 @@ int hset_add(hlld_set *set, char *key) {
  * @arg set The set to check
  * @return The estimated size of the set
  */
-uint64_t hset_size_total(hlld_set *set) {
+uint64_t hset_size_total(struct hlld_set *set) {
     if (!set->is_proxied) {
         return hll_size_total(&set->hll);
     } else {
@@ -308,7 +308,7 @@ uint64_t hset_size_total(hlld_set *set) {
     }
 }
 
-uint64_t hset_size(hlld_set *set, uint64_t time_window, time_t current_time) {
+uint64_t hset_size(struct hlld_set *set, uint64_t time_window, time_t current_time) {
     if (!set->is_proxied) {
         return hll_size(&set->hll, (int)time_window, current_time);
     } else {
@@ -317,12 +317,29 @@ uint64_t hset_size(hlld_set *set, uint64_t time_window, time_t current_time) {
 }
 
 /**
+ * Gets the size of the union of a few sets
+ * @arg sets num_sets number of sets that we take the union of
+ * @arg num_sets number of sets we're taking the union of
+ * @arg time_window the amount of time we're counting
+ * @arg current_time the current time
+ */
+uint64_t hset_size_union(struct hlld_set **sets, int num_sets, uint64_t time_window, time_t current_time) {
+    hll_t **hlls = (hll_t **)malloc(sizeof(hll_t)*num_sets);
+    for(int i=0; i<num_sets; i++) {
+        hlls[i] = &sets[i]->hll;
+    }
+    uint64_t result = hll_union_size(hlls, num_sets, (int)time_window, current_time);
+    free(hlls);
+    return result;
+}
+
+/**
  * Gets the byte size of the set
  * @note Thread safe.
  * @arg set The set
  * @return The total byte size of the set
  */
-uint64_t hset_byte_size(hlld_set *set) {
+uint64_t hset_byte_size(struct hlld_set *set) {
     if (set->bm.size)
         return set->bm.size;
     return hll_bytes_for_precision(set->set_config.default_precision);
@@ -331,7 +348,7 @@ uint64_t hset_byte_size(hlld_set *set) {
 /**
  * Provides a thread safe faulting of the set.
  */
-static int thread_safe_fault(hlld_set *s) {
+static int thread_safe_fault(struct hlld_set *s) {
     // Acquire lock
     int res = 0;
     char *bitmap_path = NULL;
@@ -342,9 +359,7 @@ static int thread_safe_fault(hlld_set *s) {
         goto LEAVE;
 
     // Get the mode for our bitmap
-    bitmap_mode mode;
     if (s->set_config.in_memory) {
-        mode = ANONYMOUS;
 
         s->is_proxied = 0;
         res = hll_init(
@@ -355,10 +370,6 @@ static int thread_safe_fault(hlld_set *s) {
         // Skip the fault in
         goto LEAVE;
 
-    } else {
-        //mode = PERSISTENT;
-        // XXX We no longer have a persistent mode
-        mode = SHARED;
     }
 
     // Get the full path to the bitmap
@@ -375,7 +386,6 @@ static int thread_safe_fault(hlld_set *s) {
     if (res == 0 && buf.st_size != 0) {
         syslog(LOG_ERR, "Discovered HLL set: %s.", bitmap_path);
         res = unserialize_hll_from_filename(bitmap_path, &s->hll);
-        //res = bitmap_from_filename(bitmap_path, buf.st_size, 0, mode, &s->bm);
         if (res) {
             syslog(LOG_ERR, "Failed to load bitmap: %s. %s", bitmap_path, strerror(errno));
             goto LEAVE;

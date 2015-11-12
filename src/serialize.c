@@ -76,7 +76,7 @@ int serialize_hll_register(serialize_t *s, hll_register *h) {
 int unserialize_hll_register(serialize_t *s, hll_register *h) {
     ERR(unserialize_long(s, &h->size));
     h->capacity = h->size;
-    h->points = malloc(h->capacity*sizeof(hll_register));
+    h->points = (hll_point*)malloc(h->capacity*sizeof(hll_point));
     for (long i=0; i<h->size; i++) {
         ERR(unserialize_long(s, &h->points[i].timestamp));
         ERR(unserialize_long(s, &h->points[i].register_));
@@ -108,7 +108,7 @@ int unserialize_hll(serialize_t *s, hll_t *h) {
     ERR(unserialize_int(s, &h->window_period));
     ERR(unserialize_int(s, &h->window_precision));
     int num_regs = NUM_REG(h->precision);
-    h->registers = malloc(num_regs*sizeof(hll_register));
+    h->registers = (hll_register*)malloc(num_regs*sizeof(hll_register));
     for(int i=0; i<num_regs; i++) {
         ERR(unserialize_hll_register(s, &h->registers[i]));
     }
@@ -153,7 +153,7 @@ int unserialize_hll_from_file(int fileno, uint64_t len, hll_t *h) {
     if (newfileno < 0) return -errno;
 
     // Perform the map in
-    unsigned char* addr = mmap(NULL, len, PROT_READ|PROT_WRITE,
+    unsigned char* addr = (unsigned char*)mmap(NULL, len, PROT_READ|PROT_WRITE,
             flags, newfileno, 0);
 
     // Check for an error, otherwise return
@@ -205,7 +205,7 @@ int serialize_hll_to_filename(char *filename, hll_t *h) {
         return -errno;
     }
 
-    unsigned char* addr = malloc(sizeof(char)*serialized_size);
+    unsigned char* addr = (unsigned char*)malloc(sizeof(char)*serialized_size);
 
     serialize_t s = {addr, 0, serialized_size};
     int res = serialize_hll(&s, h);

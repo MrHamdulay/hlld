@@ -19,6 +19,7 @@
 #include "networking.h"
 #include "set_manager.h"
 #include "background.h"
+#include "thrift_server.h"
 
 // Simple struct that holds args for the workers
 typedef struct {
@@ -113,6 +114,7 @@ void setup_syslog() {
  */
 void signal_handler(int signum) {
     SHOULD_RUN = 0;  // Stop running now
+    stop_thrift_server();
     syslog(LOG_WARNING, "Received signal [%s]! Exiting...", strsignal(signum));
 }
 
@@ -128,7 +130,7 @@ int main(int argc, char **argv) {
     if (parse_res) return 1;
 
     // Parse the config file
-    hlld_config *config = calloc(1, sizeof(hlld_config));
+    struct hlld_config *config = (struct hlld_config *)calloc(1, sizeof(struct hlld_config));
     int config_res = config_from_filename(config_file, config);
     if (config_res != 0) {
         syslog(LOG_ERR, "Failed to read the configuration file!");
@@ -175,10 +177,11 @@ int main(int argc, char **argv) {
 
     // Start the network workers
     worker_args wargs = {mgr, netconf};
-    pthread_t *threads = calloc(config->worker_threads, sizeof(pthread_t));
+    pthread_t *threads = (pthread_t *)calloc(config->worker_threads+1, sizeof(pthread_t));
     for (int i=0; i < config->worker_threads; i++) {
         pthread_create(&threads[i], NULL, (void*(*)(void*))worker_main, &wargs);
     }
+    pthread_create(&threads[config->worker_threads], NULL, (void*(*)(void*))start_thrift_server, mgr);
 
     // Prepare our signal handlers to loop until we are signaled to quit
     signal(SIGPIPE, SIG_IGN);       // Ignore SIG_IGN
