@@ -15,7 +15,7 @@
 #define SERIAL_VERSION 1
 #define ERR(err) if (err == -1) { return -1; }
 
-inline int serialize_int(serialize_t *s, int i) {
+ int serialize_int(serialize_t *s, int i) {
     if (s->offset + sizeof(int) >= s->size)
         return -1;
     *(int*)(s->memory+s->offset) = i;
@@ -23,7 +23,7 @@ inline int serialize_int(serialize_t *s, int i) {
     return 0;
 }
 
-inline int unserialize_int(serialize_t *s, int *i) {
+ int unserialize_int(serialize_t *s, int *i) {
     if (s->offset + sizeof(int) >= s->size)
         return -1;
     *i = *(int*)(s->memory+s->offset);
@@ -31,7 +31,7 @@ inline int unserialize_int(serialize_t *s, int *i) {
     return 0;
 }
 
-inline int serialize_long(serialize_t *s, long i) {
+ int serialize_long(serialize_t *s, long i) {
     if (s->offset + sizeof(long) >= s->size)
         return -1;
     *(long*)(s->memory+s->offset) = i;
@@ -39,7 +39,7 @@ inline int serialize_long(serialize_t *s, long i) {
     return 0;
 }
 
-inline int unserialize_long(serialize_t *s, long *i) {
+ int unserialize_long(serialize_t *s, long *i) {
     if (s->offset + sizeof(long) >= s->size)
         return -1;
     *i = *(long*)(s->memory+s->offset);
@@ -47,7 +47,7 @@ inline int unserialize_long(serialize_t *s, long *i) {
     return 0;
 }
 
-inline int serialize_unsigned_char(serialize_t *s, unsigned char c) {
+ int serialize_unsigned_char(serialize_t *s, unsigned char c) {
     if (s->offset + sizeof(char) >= s->size)
         return -1;
     s->memory[s->offset] = c;
@@ -55,7 +55,7 @@ inline int serialize_unsigned_char(serialize_t *s, unsigned char c) {
     return 0;
 }
 
-inline int unserialize_unsigned_char(serialize_t *s, unsigned char *c) {
+ int unserialize_unsigned_char(serialize_t *s, unsigned char *c) {
     if (s->offset + sizeof(char) >= s->size)
         return -1;
     *c = s->memory[s->offset];

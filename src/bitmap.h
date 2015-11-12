@@ -27,7 +27,7 @@ typedef struct {
  * @arg map The output map. Will be initialized.
  * @return 0 on success. Negative on error.
  */
-int bitmap_from_file(int fileno, uint64_t len, bitmap_mode mode, hlld_bitmap *map);
+int bitmap_from_file(int fileno, uint64_t len, unsigned int mode, hlld_bitmap *map);
 
 /**
  * Returns a hlld_bitmap pointer from a filename.

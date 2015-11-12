@@ -437,34 +437,34 @@ START_TEST(test_mgr_clear_reload)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "zab9", NULL);
+    res = setmgr_create_set(mgr, (char*)"zab9", NULL);
     fail_unless(res == 0);
 
     // Try to add keys now
-    char *keys[] = {"hey","there","person"};
-    res = setmgr_set_keys(mgr, "zab9", (char**)&keys, 3);
+    char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
+    res = setmgr_set_keys(mgr, (char*)"zab9", (char**)&keys, 3);
     fail_unless(res == 0);
 
-    res = setmgr_unmap_set(mgr, "zab9");
+    res = setmgr_unmap_set(mgr, (char*)"zab9");
     fail_unless(res == 0);
 
-    res = setmgr_clear_set(mgr, "zab9");
+    res = setmgr_clear_set(mgr, (char*)"zab9");
     fail_unless(res == 0);
 
     // Force a vacuum
     setmgr_vacuum(mgr);
 
     // This should rediscover
-    res = setmgr_create_set(mgr, "zab9", NULL);
+    res = setmgr_create_set(mgr, (char*)"zab9", NULL);
     fail_unless(res == 0);
 
     // Try to check keys now
     uint64_t size;
-    res = setmgr_set_size_total(mgr, "zab9", &size);
+    res = setmgr_set_size_total(mgr, (char*)"zab9", &size);
     fail_unless(res == 0);
     fail_unless(size == 3);
 
-    res = setmgr_drop_set(mgr, "zab9");
+    res = setmgr_drop_set(mgr, (char*)"zab9");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
@@ -504,9 +504,9 @@ START_TEST(test_mgr_list_cold)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "zab6", NULL);
+    res = setmgr_create_set(mgr, (char*)"zab6", NULL);
     fail_unless(res == 0);
-    res = setmgr_create_set(mgr, "zab7", NULL);
+    res = setmgr_create_set(mgr, (char*)"zab7", NULL);
     fail_unless(res == 0);
 
     // Force vacuum so that these are noticed by the cold list
@@ -518,8 +518,8 @@ START_TEST(test_mgr_list_cold)
     fail_unless(head->size == 0);
 
     // Check the keys in one, so that it stays hot
-    char *keys[] = {"hey","there","person"};
-    res = setmgr_set_keys(mgr, "zab6", (char**)&keys, 3);
+    char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
+    res = setmgr_set_keys(mgr, (char*)"zab6", (char**)&keys, 3);
     fail_unless(res == 0);
 
     // Check cold again
@@ -532,18 +532,18 @@ START_TEST(test_mgr_list_cold)
 
     hlld_set_list *node = head->head;
     while (node) {
-        if (strcmp(node->set_name, "zab6") == 0)
+        if (strcmp(node->set_name, (char*)"zab6") == 0)
             has_zab6 = 1;
-        else if (strcmp(node->set_name, "zab7") == 0)
+        else if (strcmp(node->set_name, (char*)"zab7") == 0)
             has_zab7 = 1;
         node = node->next;
     }
     fail_unless(!has_zab6);
     fail_unless(has_zab7);
 
-    res = setmgr_drop_set(mgr, "zab6");
+    res = setmgr_drop_set(mgr, (char*)"zab6");
     fail_unless(res == 0);
-    res = setmgr_drop_set(mgr, "zab7");
+    res = setmgr_drop_set(mgr, (char*)"zab7");
     fail_unless(res == 0);
     setmgr_cleanup_list(head);
 
@@ -568,20 +568,20 @@ START_TEST(test_mgr_unmap_in_mem)
     fail_unless(res == 0);
 
     // Try to add keys now
-    char *keys[] = {"hey","there","person"};
-    res = setmgr_set_keys(mgr, "mem1", (char**)&keys, 3);
+    char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
+    res = setmgr_set_keys(mgr, (char*)"mem1", (char**)&keys, 3);
     fail_unless(res == 0);
 
-    res = setmgr_unmap_set(mgr, "mem1");
+    res = setmgr_unmap_set(mgr, (char*)"mem1");
     fail_unless(res == 0);
 
     // Try to check keys now
     uint64_t size;
-    res = setmgr_set_size_total(mgr, "mem1", &size);
+    res = setmgr_set_size_total(mgr, (char*)"mem1", &size);
     fail_unless(res == 0);
     fail_unless(size == 3);
 
-    res = setmgr_drop_set(mgr, "mem1");
+    res = setmgr_drop_set(mgr, (char*)"mem1");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
@@ -601,14 +601,14 @@ START_TEST(test_mgr_create_custom_config)
     fail_unless(res == 0);
 
     // Custom config
-    hlld_config *custom = malloc(sizeof(hlld_config));
+    hlld_config *custom = (hlld_config*)malloc(sizeof(hlld_config));
     memcpy(custom, &config, sizeof(hlld_config));
     custom->in_memory = 1;
 
-    res = setmgr_create_set(mgr, "custom1", custom);
+    res = setmgr_create_set(mgr, (char*)"custom1", custom);
     fail_unless(res == 0);
 
-    res = setmgr_drop_set(mgr, "custom1");
+    res = setmgr_drop_set(mgr, (char*)"custom1");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
@@ -628,11 +628,11 @@ START_TEST(test_mgr_restore)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "zab8", NULL);
+    res = setmgr_create_set(mgr, (char*)"zab8", NULL);
     fail_unless(res == 0);
 
-    char *keys[] = {"hey","there","person"};
-    res = setmgr_set_keys(mgr, "zab8", (char**)&keys, 3);
+    char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
+    res = setmgr_set_keys(mgr, (char*)"zab8", (char**)&keys, 3);
     fail_unless(res == 0);
 
     // Shutdown
@@ -645,11 +645,11 @@ START_TEST(test_mgr_restore)
 
     // Try to check keys now
     uint64_t size;
-    res = setmgr_set_size_total(mgr, "zab8", &size);
+    res = setmgr_set_size_total(mgr, (char*)"zab8", &size);
     fail_unless(res == 0);
     fail_unless(size == 3);
 
-    res = setmgr_drop_set(mgr, "zab8");
+    res = setmgr_drop_set(mgr, (char*)"zab8");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
@@ -660,7 +660,7 @@ END_TEST
 void test_mgr_cb(void *data, char *set_name, hlld_set* set) {
     (void)set_name;
     (void)set;
-    int *out = data;
+    int *out = (int*)data;
     *out = 1;
 }
 
@@ -675,14 +675,14 @@ START_TEST(test_mgr_callback)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "cb1", NULL);
+    res = setmgr_create_set(mgr, (char*)"cb1", NULL);
     fail_unless(res == 0);
 
     int val = 0;
-    res = setmgr_set_cb(mgr, "cb1", test_mgr_cb, &val);
+    res = setmgr_set_cb(mgr, (char*)"cb1", test_mgr_cb, &val);
     fail_unless(val == 1);
 
-    res = setmgr_drop_set(mgr, "cb1");
+    res = setmgr_drop_set(mgr, (char*)"cb1");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
