@@ -31,7 +31,7 @@ END_TEST
 START_TEST(test_config_bad_file)
 {
     hlld_config config;
-    int res = config_from_filename("/tmp/does_not_exist", &config);
+    int res = config_from_filename((char*)"/tmp/does_not_exist", &config);
     fail_unless(res == -ENOENT);
 
     // Should get the defaults...
@@ -57,7 +57,7 @@ START_TEST(test_config_empty_file)
     close(fh);
 
     hlld_config config;
-    int res = config_from_filename("/tmp/zero_file", &config);
+    int res = config_from_filename((char*)"/tmp/zero_file", &config);
     fail_unless(res == 0);
 
     // Should get the defaults...
@@ -81,7 +81,7 @@ END_TEST
 START_TEST(test_config_basic_config)
 {
     int fh = open("/tmp/basic_config", O_CREAT|O_RDWR, 0777);
-    char *buf = "[hlld]\n\
+    char *buf = (char*)"[hlld]\n\
 port = 10000\n\
 udp_port = 10001\n\
 flush_interval = 120\n\
@@ -97,7 +97,7 @@ log_level = INFO\n";
     close(fh);
 
     hlld_config config;
-    int res = config_from_filename("/tmp/basic_config", &config);
+    int res = config_from_filename((char*)"/tmp/basic_config", &config);
     fail_unless(res == 0);
 
     // Should get the config
@@ -120,7 +120,7 @@ END_TEST
 START_TEST(test_config_basic_config_precision)
 {
     int fh = open("/tmp/basic_config_prec", O_CREAT|O_RDWR, 0777);
-    char *buf = "[hlld]\n\
+    char *buf = (char*)"[hlld]\n\
 port = 10000\n\
 udp_port = 10001\n\
 flush_interval = 120\n\
@@ -136,7 +136,7 @@ log_level = INFO\n";
     close(fh);
 
     hlld_config config;
-    int res = config_from_filename("/tmp/basic_config_prec", &config);
+    int res = config_from_filename((char*)"/tmp/basic_config_prec", &config);
     fail_unless(res == 0);
 
     // Should get the config
@@ -185,8 +185,8 @@ END_TEST
 
 START_TEST(test_join_path_no_slash)
 {
-    char *s1 = "/tmp/path";
-    char *s2 = "file";
+    char *s1 = (char*)"/tmp/path";
+    char *s2 = (char*)"file";
     char *s3 = join_path(s1, s2);
     fail_unless(strcmp(s3, "/tmp/path/file") == 0);
 }
@@ -194,8 +194,8 @@ END_TEST
 
 START_TEST(test_join_path_with_slash)
 {
-    char *s1 = "/tmp/path/";
-    char *s2 = "file";
+    char *s1 = (char*)"/tmp/path/";
+    char *s2 = (char*)"file";
     char *s3 = join_path(s1, s2);
     fail_unless(strcmp(s3, "/tmp/path/file") == 0);
 }
@@ -204,18 +204,18 @@ END_TEST
 START_TEST(test_sane_log_level)
 {
     int log_lvl;
-    fail_unless(sane_log_level("DEBUG", &log_lvl) == 0);
-    fail_unless(sane_log_level("debug", &log_lvl) == 0);
-    fail_unless(sane_log_level("INFO", &log_lvl) == 0);
-    fail_unless(sane_log_level("info", &log_lvl) == 0);
-    fail_unless(sane_log_level("WARN", &log_lvl) == 0);
-    fail_unless(sane_log_level("warn", &log_lvl) == 0);
-    fail_unless(sane_log_level("ERROR", &log_lvl) == 0);
-    fail_unless(sane_log_level("error", &log_lvl) == 0);
-    fail_unless(sane_log_level("CRITICAL", &log_lvl) == 0);
-    fail_unless(sane_log_level("critical", &log_lvl) == 0);
-    fail_unless(sane_log_level("foo", &log_lvl) == 1);
-    fail_unless(sane_log_level("BAR", &log_lvl) == 1);
+    fail_unless(sane_log_level((char*)"DEBUG", &log_lvl) == 0);
+    fail_unless(sane_log_level((char*)"debug", &log_lvl) == 0);
+    fail_unless(sane_log_level((char*)"INFO", &log_lvl) == 0);
+    fail_unless(sane_log_level((char*)"info", &log_lvl) == 0);
+    fail_unless(sane_log_level((char*)"WARN", &log_lvl) == 0);
+    fail_unless(sane_log_level((char*)"warn", &log_lvl) == 0);
+    fail_unless(sane_log_level((char*)"ERROR", &log_lvl) == 0);
+    fail_unless(sane_log_level((char*)"error", &log_lvl) == 0);
+    fail_unless(sane_log_level((char*)"CRITICAL", &log_lvl) == 0);
+    fail_unless(sane_log_level((char*)"critical", &log_lvl) == 0);
+    fail_unless(sane_log_level((char*)"foo", &log_lvl) == 1);
+    fail_unless(sane_log_level((char*)"BAR", &log_lvl) == 1);
 }
 END_TEST
 
@@ -294,7 +294,7 @@ START_TEST(test_set_config_bad_file)
 {
     hlld_set_config config;
     memset(&config, '\0', sizeof(config));
-    int res = set_config_from_filename("/tmp/does_not_exist", &config);
+    int res = set_config_from_filename((char*)"/tmp/does_not_exist", &config);
     fail_unless(res == -ENOENT);
 
     fail_unless(config.default_eps == 0);
@@ -312,7 +312,7 @@ START_TEST(test_set_config_empty_file)
 
     hlld_set_config config;
     memset(&config, '\0', sizeof(config));
-    int res = set_config_from_filename("/tmp/zero_file", &config);
+    int res = set_config_from_filename((char*)"/tmp/zero_file", &config);
     fail_unless(res == 0);
 
     fail_unless(config.default_eps == 0);
@@ -327,7 +327,7 @@ END_TEST
 START_TEST(test_set_config_basic_config)
 {
     int fh = open("/tmp/set_basic_config", O_CREAT|O_RDWR, 0777);
-    char *buf = "[hlld]\n\
+    char *buf = (char*)"[hlld]\n\
 size = 1024\n\
 in_memory = 1\n\
 default_eps = 0.01625\n\
@@ -340,7 +340,7 @@ sliding_precision = 12\n";
 
     hlld_set_config config;
     memset(&config, '\0', sizeof(config));
-    int res = set_config_from_filename("/tmp/set_basic_config", &config);
+    int res = set_config_from_filename((char*)"/tmp/set_basic_config", &config);
     fail_unless(res == 0);
 
     // Should get the config
@@ -363,14 +363,14 @@ START_TEST(test_update_filename_from_set_config)
     config.in_memory = 1;
     config.size = 4096;
 
-    int res = update_filename_from_set_config("/tmp/update_filter", &config);
+    int res = update_filename_from_set_config((char*)"/tmp/update_filter", &config);
     chmod("/tmp/update_filter", 777);
     fail_unless(res == 0);
 
     // Should get the config
     hlld_set_config config2;
     memset(&config2, '\0', sizeof(config2));
-    res = set_config_from_filename("/tmp/update_filter", &config2);
+    res = set_config_from_filename((char*)"/tmp/update_filter", &config2);
     fail_unless(res == 0);
 
     fail_unless(config2.default_eps == 0.01625);

@@ -198,7 +198,7 @@ static void handle_size_cmd(hlld_conn_handler *handle, char *args, int args_len)
     if (err) INTERNAL_ERROR();
 
     char estimate_string[512];
-    int estimate_length = snprintf(estimate_string, 512, "size %lld\n", estimate);
+    int estimate_length = snprintf(estimate_string, 512, "size %lld\n", (long long)estimate);
     if (estimate_length == -1) INTERNAL_ERROR();
 
     handle_client_resp(handle->conn, estimate_string, estimate_length);
