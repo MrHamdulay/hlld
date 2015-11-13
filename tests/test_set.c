@@ -12,7 +12,7 @@
 
 static int set_out_special(const struct dirent *d) {
     const char *name = d->d_name;
-    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+    if (strcmp(name, (char*)".") == 0 || strcmp(name, (char*)"..") == 0) {
         return 0;
     }
     return 1;
@@ -56,7 +56,7 @@ START_TEST(test_set_init_destroy)
     fail_unless(res == 0);
 
     hlld_set *set = NULL;
-    res = init_set(&config, "test_set", 0, &set);
+    res = init_set(&config, (char*)"test_set", 0, &set);
     fail_unless(res == 0);
 
     res = destroy_set(set);
@@ -71,13 +71,13 @@ START_TEST(test_set_init_discover_destroy)
     fail_unless(res == 0);
 
     hlld_set *set = NULL;
-    res = init_set(&config, "test_set", 1, &set);
+    res = init_set(&config, (char*)"test_set", 1, &set);
     fail_unless(res == 0);
     fail_unless(hset_is_proxied(set) == 0);
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    int num_deleted = delete_dir("/tmp/hlld/hlld.test_set");
+    int num_deleted = delete_dir((char*)"/tmp/hlld/hlld.test_set");
     fail_unless(num_deleted == 2 || num_deleted == 1);
 }
 END_TEST
@@ -89,7 +89,7 @@ START_TEST(test_set_init_discover_delete)
     fail_unless(res == 0);
 
     hlld_set *set = NULL;
-    res = init_set(&config, "test_set2", 1, &set);
+    res = init_set(&config, (char*)"test_set2", 1, &set);
     fail_unless(res == 0);
     fail_unless(hset_is_proxied(set) == 0);
 
@@ -98,7 +98,7 @@ START_TEST(test_set_init_discover_delete)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir("/tmp/hlld/hlld.test_set2") == 0);
+    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set2") == 0);
 }
 END_TEST
 
@@ -109,7 +109,7 @@ START_TEST(test_set_init_proxied)
     fail_unless(res == 0);
 
     hlld_set *set = NULL;
-    res = init_set(&config, "test_set3", 0, &set);
+    res = init_set(&config, (char*)"test_set3", 0, &set);
     fail_unless(res == 0);
 
     set_counters *counters = hset_counters(set);
@@ -123,7 +123,7 @@ START_TEST(test_set_init_proxied)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir("/tmp/hlld/hlld.test_set3") == 0);
+    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set3") == 0);
 }
 END_TEST
 
@@ -134,7 +134,7 @@ START_TEST(test_set_add)
     fail_unless(res == 0);
 
     hlld_set *set = NULL;
-    res = init_set(&config, "test_set4", 0, &set);
+    res = init_set(&config, (char*)"test_set4", 0, &set);
     fail_unless(res == 0);
 
     set_counters *counters = hset_counters(set);
@@ -142,7 +142,7 @@ START_TEST(test_set_add)
     // Check all the keys get added
     char buf[100];
     for (int i=0;i<10000;i++) {
-        snprintf((char*)&buf, 100, "foobar%d", i);
+        snprintf((char*)&buf, 100, (char*)"foobar%d", i);
         res = hset_add(set, (char*)&buf);
         fail_unless(res == 0);
     }
@@ -153,7 +153,7 @@ START_TEST(test_set_add)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    int delete_num = delete_dir("/tmp/hlld/hlld.test_set4");
+    int delete_num = delete_dir((char*)"/tmp/hlld/hlld.test_set4");
     // we do not always write a registers file
     fail_unless(delete_num == 2 || delete_num == 1);
 }
@@ -166,13 +166,13 @@ START_TEST(test_set_restore)
     fail_unless(res == 0);
 
     hlld_set *set = NULL;
-    res = init_set(&config, "test_set5", 0, &set);
+    res = init_set(&config, (char*)"test_set5", 0, &set);
     fail_unless(res == 0);
 
     // Check all the keys get added
     char buf[100];
     for (int i=0;i<10000;i++) {
-        snprintf((char*)&buf, 100, "foobar%d", i);
+        snprintf((char*)&buf, 100, (char*)"foobar%d", i);
         res = hset_add(set, (char*)&buf);
         fail_unless(res == 0);
     }
@@ -185,7 +185,7 @@ START_TEST(test_set_restore)
     fail_unless(res == 0);
 
     // Remake the set
-    res = init_set(&config, "test_set5", 1, &set);
+    res = init_set(&config, (char*)"test_set5", 1, &set);
     fail_unless(res == 0);
 
     // Re-check
@@ -194,7 +194,7 @@ START_TEST(test_set_restore)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir("/tmp/hlld/hlld.test_set5") == 2);
+    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set5") == 2);
 }
 END_TEST
 
@@ -205,13 +205,13 @@ START_TEST(test_set_flush)
     fail_unless(res == 0);
 
     hlld_set *set = NULL;
-    res = init_set(&config, "test_set6", 0, &set);
+    res = init_set(&config, (char*)"test_set6", 0, &set);
     fail_unless(res == 0);
 
     // Check all the keys get added
     char buf[100];
     for (int i=0;i<10000;i++) {
-        snprintf((char*)&buf, 100, "foobar%d", i);
+        snprintf((char*)&buf, 100, (char*)"foobar%d", i);
         res = hset_add(set, (char*)&buf);
         fail_unless(res == 0);
     }
@@ -221,7 +221,7 @@ START_TEST(test_set_flush)
 
     // Remake the set
     hlld_set *set2 = NULL;
-    res = init_set(&config, "test_set6", 1, &set2);
+    res = init_set(&config, (char*)"test_set6", 1, &set2);
     fail_unless(res == 0);
 
     // Re-check
@@ -234,7 +234,7 @@ START_TEST(test_set_flush)
 
     res = destroy_set(set2);
     fail_unless(res == 0);
-    fail_unless(delete_dir("/tmp/hlld/hlld.test_set6") == 2);
+    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set6") == 2);
 }
 END_TEST
 
@@ -246,7 +246,7 @@ START_TEST(test_set_add_in_mem)
     fail_unless(res == 0);
 
     hlld_set *set = NULL;
-    res = init_set(&config, "test_set7", 0, &set);
+    res = init_set(&config, (char*)"test_set7", 0, &set);
     fail_unless(res == 0);
 
     set_counters *counters = hset_counters(set);
@@ -254,7 +254,7 @@ START_TEST(test_set_add_in_mem)
     // Check all the keys get added
     char buf[100];
     for (int i=0;i<10000;i++) {
-        snprintf((char*)&buf, 100, "foobar%d", i);
+        snprintf((char*)&buf, 100, (char*)"foobar%d", i);
         res = hset_add(set, (char*)&buf);
         fail_unless(res == 0);
     }
@@ -265,7 +265,7 @@ START_TEST(test_set_add_in_mem)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir("/tmp/hlld/hlld.test_set7") == 1);
+    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set7") == 1);
 }
 END_TEST
 
@@ -276,7 +276,7 @@ START_TEST(test_set_page_out)
     fail_unless(res == 0);
 
     hlld_set *set = NULL;
-    res = init_set(&config, "test_set10", 0, &set);
+    res = init_set(&config, (char*)"test_set10", 0, &set);
     fail_unless(res == 0);
 
     set_counters *counters = hset_counters(set);
@@ -284,7 +284,7 @@ START_TEST(test_set_page_out)
     // Check all the keys get added
     char buf[100];
     for (int i=0;i<10000;i++) {
-        snprintf((char*)&buf, 100, "foobar%d", i);
+        snprintf((char*)&buf, 100, (char*)"foobar%d", i);
         res = hset_add(set, (char*)&buf);
         fail_unless(res == 0);
     }
@@ -307,7 +307,7 @@ START_TEST(test_set_page_out)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir("/tmp/hlld/hlld.test_set10") == 2);
+    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set10") == 2);
 }
 END_TEST
 

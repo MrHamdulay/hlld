@@ -36,10 +36,10 @@ START_TEST(test_mgr_create_drop)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "foo1", NULL);
+    res = setmgr_create_set(mgr, (char*)"foo1", NULL);
     fail_unless(res == 0);
 
-    res = setmgr_drop_set(mgr, "foo1");
+    res = setmgr_drop_set(mgr, (char*)"foo1");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
@@ -57,13 +57,13 @@ START_TEST(test_mgr_create_double_drop)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "dub1", NULL);
+    res = setmgr_create_set(mgr, (char*)"dub1", NULL);
     fail_unless(res == 0);
 
-    res = setmgr_drop_set(mgr, "dub1");
+    res = setmgr_drop_set(mgr, (char*)"dub1");
     fail_unless(res == 0);
 
-    res = setmgr_drop_set(mgr, "dub1");
+    res = setmgr_drop_set(mgr, (char*)"dub1");
     fail_unless(res == -1);
 
     res = destroy_set_manager(mgr);
@@ -81,9 +81,9 @@ START_TEST(test_mgr_list)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "bar1", NULL);
+    res = setmgr_create_set(mgr, (char*)"bar1", NULL);
     fail_unless(res == 0);
-    res = setmgr_create_set(mgr, "bar2", NULL);
+    res = setmgr_create_set(mgr, (char*)"bar2", NULL);
     fail_unless(res == 0);
 
     hlld_set_list_head *head;
@@ -96,18 +96,18 @@ START_TEST(test_mgr_list)
 
     hlld_set_list *node = head->head;
     while (node) {
-        if (strcmp(node->set_name, "bar1") == 0)
+        if (strcmp(node->set_name, (char*)"bar1") == 0)
             has_bar1 = 1;
-        else if (strcmp(node->set_name, "bar2") == 0)
+        else if (strcmp(node->set_name, (char*)"bar2") == 0)
             has_bar2 = 1;
         node = node->next;
     }
     fail_unless(has_bar1);
     fail_unless(has_bar2);
 
-    res = setmgr_drop_set(mgr, "bar1");
+    res = setmgr_drop_set(mgr, (char*)"bar1");
     fail_unless(res == 0);
-    res = setmgr_drop_set(mgr, "bar2");
+    res = setmgr_drop_set(mgr, (char*)"bar2");
     fail_unless(res == 0);
 
     setmgr_cleanup_list(head);
@@ -127,15 +127,15 @@ START_TEST(test_mgr_list_prefix)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "bar1", NULL);
+    res = setmgr_create_set(mgr, (char*)"bar1", NULL);
     fail_unless(res == 0);
-    res = setmgr_create_set(mgr, "bar2", NULL);
+    res = setmgr_create_set(mgr, (char*)"bar2", NULL);
     fail_unless(res == 0);
-    res = setmgr_create_set(mgr, "junk1", NULL);
+    res = setmgr_create_set(mgr, (char*)"junk1", NULL);
     fail_unless(res == 0);
 
     hlld_set_list_head *head;
-    res = setmgr_list_sets(mgr, "bar", &head);
+    res = setmgr_list_sets(mgr, (char*)"bar", &head);
     fail_unless(res == 0);
     fail_unless(head->size == 2);
 
@@ -144,20 +144,20 @@ START_TEST(test_mgr_list_prefix)
 
     hlld_set_list *node = head->head;
     while (node) {
-        if (strcmp(node->set_name, "bar1") == 0)
+        if (strcmp(node->set_name, (char*)"bar1") == 0)
             has_bar1 = 1;
-        else if (strcmp(node->set_name, "bar2") == 0)
+        else if (strcmp(node->set_name, (char*)"bar2") == 0)
             has_bar2 = 1;
         node = node->next;
     }
     fail_unless(has_bar1);
     fail_unless(has_bar2);
 
-    res = setmgr_drop_set(mgr, "bar1");
+    res = setmgr_drop_set(mgr, (char*)"bar1");
     fail_unless(res == 0);
-    res = setmgr_drop_set(mgr, "bar2");
+    res = setmgr_drop_set(mgr, (char*)"bar2");
     fail_unless(res == 0);
-    res = setmgr_drop_set(mgr, "junk1");
+    res = setmgr_drop_set(mgr, (char*)"junk1");
     fail_unless(res == 0);
 
     setmgr_cleanup_list(head);
@@ -200,14 +200,14 @@ START_TEST(test_mgr_add_keys)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "zab1", NULL);
+    res = setmgr_create_set(mgr, (char*)"zab1", NULL);
     fail_unless(res == 0);
 
-    char *keys[] = {"hey","there","person"};
-    res = setmgr_set_keys(mgr, "zab1", (char**)&keys, 3);
+    char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
+    res = setmgr_set_keys(mgr, (char*)"zab1", (char**)&keys, 3);
     fail_unless(res == 0);
 
-    res = setmgr_drop_set(mgr, "zab1");
+    res = setmgr_drop_set(mgr, (char*)"zab1");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
@@ -225,8 +225,8 @@ START_TEST(test_mgr_add_no_set)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    char *keys[] = {"hey","there","person"};
-    res = setmgr_set_keys(mgr, "noop1", (char**)&keys, 3);
+    char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
+    res = setmgr_set_keys(mgr, (char*)"noop1", (char**)&keys, 3);
     fail_unless(res == -1);
 
     res = destroy_set_manager(mgr);
@@ -245,7 +245,7 @@ START_TEST(test_mgr_flush_no_set)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_flush_set(mgr, "noop1");
+    res = setmgr_flush_set(mgr, (char*)"noop1");
     fail_unless(res == -1);
 
     res = destroy_set_manager(mgr);
@@ -263,13 +263,13 @@ START_TEST(test_mgr_flush)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "zab3", NULL);
+    res = setmgr_create_set(mgr, (char*)"zab3", NULL);
     fail_unless(res == 0);
 
-    res = setmgr_flush_set(mgr, "zab3");
+    res = setmgr_flush_set(mgr, (char*)"zab3");
     fail_unless(res == 0);
 
-    res = setmgr_drop_set(mgr, "zab3");
+    res = setmgr_drop_set(mgr, (char*)"zab3");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
@@ -288,7 +288,7 @@ START_TEST(test_mgr_unmap_no_set)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_unmap_set(mgr, "noop2");
+    res = setmgr_unmap_set(mgr, (char*)"noop2");
     fail_unless(res == -1);
 
     res = destroy_set_manager(mgr);
@@ -306,13 +306,13 @@ START_TEST(test_mgr_unmap)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "zab4", NULL);
+    res = setmgr_create_set(mgr, (char*)"zab4", NULL);
     fail_unless(res == 0);
 
-    res = setmgr_unmap_set(mgr, "zab4");
+    res = setmgr_unmap_set(mgr, (char*)"zab4");
     fail_unless(res == 0);
 
-    res = setmgr_drop_set(mgr, "zab4");
+    res = setmgr_drop_set(mgr, (char*)"zab4");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
@@ -330,18 +330,18 @@ START_TEST(test_mgr_unmap_add_keys)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "zab5", NULL);
+    res = setmgr_create_set(mgr, (char*)"zab5", NULL);
     fail_unless(res == 0);
 
-    res = setmgr_unmap_set(mgr, "zab5");
+    res = setmgr_unmap_set(mgr, (char*)"zab5");
     fail_unless(res == 0);
 
     // Try to add keys now
-    char *keys[] = {"hey","there","person"};
-    res = setmgr_set_keys(mgr, "zab5", (char**)&keys, 3);
+    char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
+    res = setmgr_set_keys(mgr, (char*)"zab5", (char**)&keys, 3);
     fail_unless(res == 0);
 
-    res = setmgr_drop_set(mgr, "zab5");
+    res = setmgr_drop_set(mgr, (char*)"zab5");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
@@ -360,7 +360,7 @@ START_TEST(test_mgr_clear_no_set)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_clear_set(mgr, "noop2");
+    res = setmgr_clear_set(mgr, (char*)"noop2");
     fail_unless(res == -1);
 
     res = destroy_set_manager(mgr);
@@ -378,14 +378,14 @@ START_TEST(test_mgr_clear_not_proxied)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "dub1", NULL);
+    res = setmgr_create_set(mgr, (char*)"dub1", NULL);
     fail_unless(res == 0);
 
     // Should be not proxied still
-    res = setmgr_clear_set(mgr, "dub1");
+    res = setmgr_clear_set(mgr, (char*)"dub1");
     fail_unless(res == -2);
 
-    res = setmgr_drop_set(mgr, "dub1");
+    res = setmgr_drop_set(mgr, (char*)"dub1");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
@@ -403,23 +403,23 @@ START_TEST(test_mgr_clear)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "dub2", NULL);
+    res = setmgr_create_set(mgr, (char*)"dub2", NULL);
     fail_unless(res == 0);
 
-    res = setmgr_unmap_set(mgr, "dub2");
+    res = setmgr_unmap_set(mgr, (char*)"dub2");
     fail_unless(res == 0);
 
     // Should be not proxied still
-    res = setmgr_clear_set(mgr, "dub2");
+    res = setmgr_clear_set(mgr, (char*)"dub2");
     fail_unless(res == 0);
 
     // Force a vacuum
     setmgr_vacuum(mgr);
 
-    res = setmgr_create_set(mgr, "dub2", NULL);
+    res = setmgr_create_set(mgr, (char*)"dub2", NULL);
     fail_unless(res == 0);
 
-    res = setmgr_drop_set(mgr, "dub2");
+    res = setmgr_drop_set(mgr, (char*)"dub2");
     fail_unless(res == 0);
 
     res = destroy_set_manager(mgr);
@@ -564,7 +564,7 @@ START_TEST(test_mgr_unmap_in_mem)
     res = init_set_manager(&config, 0, &mgr);
     fail_unless(res == 0);
 
-    res = setmgr_create_set(mgr, "mem1", NULL);
+    res = setmgr_create_set(mgr, (char*)"mem1", NULL);
     fail_unless(res == 0);
 
     // Try to add keys now

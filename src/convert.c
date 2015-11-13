@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <errno.h>
+#include <stdint.h>
 
 /**
  * Attempts to convert a string to an integer (64bit),
