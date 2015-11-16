@@ -155,13 +155,12 @@ void hll_register_add_point(hll_t *h, hll_register *r, hll_point p) {
 }
 
 int hll_get_register(hll_t *h, int register_index, int time_length, time_t current_time) {
-    assert(register_index < NUM_REG(h->precision) && register_index >= 0);
     hll_register *r = &h->registers[register_index];
 
     time_t min_time = current_time - time_length/h->window_precision;
     int register_value = 0;
 
-    for(long i=0; i<r->size; i++) {
+    for(int i=0; i<r->size; i++) {
         if (r->points[i].timestamp > min_time && r->points[i].register_ > register_value) {
             register_value = r->points[i].register_;
         }
@@ -199,10 +198,9 @@ static double hll_raw_estimate_union(hll_t **h, int num_hls, int *num_zero, int 
     int num_reg = NUM_REG(precision);
     double multi = hll_alpha(precision) * num_reg * num_reg;
 
-    int reg_val;
     double inv_sum = 0;
     for (int i=0; i < num_reg; i++) {
-        reg_val = 0;
+        int reg_val = 0;
         for(int j=0; j<num_hls; j++) {
             int reg = hll_get_register(h[j], i, time_length, current_time);
             if (reg > reg_val)
