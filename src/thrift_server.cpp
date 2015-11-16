@@ -21,6 +21,7 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
   hlld_setmgr *mgr;
  public:
   SlidingHyperServiceHandler(hlld_setmgr *mgr) {
+      assert(mgr != NULL);
       this->mgr = mgr;
   }
 
@@ -29,6 +30,8 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
   }
 
   void add_many(const int32_t timestamp, const std::string& key, const std::vector<std::string> & values) {
+      setmgr_client_checkpoint(mgr);
+
       char **char_v = (char**)malloc(sizeof(char*)*values.size());
       for(size_t i=0; i<values.size(); i++) {
           char_v[i] = (char*)&values[i][0];

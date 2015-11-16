@@ -172,7 +172,8 @@ int hset_flush(struct hlld_set *set) {
         return 0;
 
     // Store our properties for a future unmap
-    set->set_config.size = hset_size_total(set);
+    // Let's not do this for now. We almost never care about total anyway. This is expensive
+    //set->set_config.size = hset_size_total(set);
 
     // Write out set_config
     char *config_name = join_path(set->full_path, (char*)CONFIG_FILENAME);
