@@ -339,7 +339,7 @@ int setmgr_flush_set(struct hlld_setmgr *mgr, char *set_name) {
  * * @return 0 on success, -1 if the set does not exist.
  * -2 on internal error.
  */
-int setmgr_set_keys(struct hlld_setmgr *mgr, char *set_name, char **keys, int num_keys) {
+int setmgr_set_keys(struct hlld_setmgr *mgr, char *set_name, char **keys, int num_keys, time_t time) {
     // Get the set
     struct hlld_set_wrapper *set = take_set(mgr, set_name);
     if (!set) return -1;
@@ -351,7 +351,7 @@ int setmgr_set_keys(struct hlld_setmgr *mgr, char *set_name, char **keys, int nu
     // Set the keys, store the results
     int res = 0;
     for (int i=0; i<num_keys; i++) {
-        res = hset_add(set->set, keys[i]);
+        res = hset_add(set->set, keys[i], time);
         if (res) break;
     }
 

@@ -66,7 +66,7 @@ START_TEST(test_shll_add_hash)
     fail_unless(hll_init(10, 100, 1, &h) == 0);
 
     for (uint64_t i=0; i < 100; i++) {
-        hll_add_hash(&h, i ^ rand());
+        hll_add_hash_at_time(&h, i ^ rand(), 100);
     }
 
     fail_unless(hll_destroy(&h) == 0);
@@ -115,7 +115,7 @@ START_TEST(test_shll_error_bound)
     char buf[100];
     for (int i=0; i < 10000; i++) {
         fail_unless(sprintf((char*)&buf, "test%d", i));
-        hll_add(&h, (char*)&buf);
+        hll_add_at_time(&h, (char*)&buf, 100);
     }
 
     // Should be within 1%

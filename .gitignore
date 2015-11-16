@@ -11,4 +11,3 @@ deps/check-0.9.8
 test_runner
 hlld
 bench
-gen-cpp/*

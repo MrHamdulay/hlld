@@ -34,11 +34,11 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
           char_v[i] = (char*)&values[i][0];
       }
 
-      int res = setmgr_set_keys(mgr, (char*)&key[0], char_v, values.size());
+      int res = setmgr_set_keys(mgr, (char*)&key[0], char_v, values.size(), (time_t)timestamp);
       // set does not exist
       if (res == -1 ) {
           setmgr_create_set(mgr, (char*)&key[0], NULL);
-          res = setmgr_set_keys(mgr, (char*)&key[0], char_v, values.size());
+          res = setmgr_set_keys(mgr, (char*)&key[0], char_v, values.size(), (time_t)timestamp);
       }
       else if (res < -1) {
           syslog(LOG_ERR, "Failure to add to key %s with value %s res: %d", (char*)&key[0], res);
@@ -58,11 +58,11 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
 
   void add(const int32_t timestamp, const std::string& key, const std::string& value) {
       char *values[] = {(char*)&value[0]};
-      int res = setmgr_set_keys(mgr, (char*)&key[0], values, 1);
+      int res = setmgr_set_keys(mgr, (char*)&key[0], values, 1, (time_t)timestamp);
       // set does not exist
       if (res == -1 ) {
           setmgr_create_set(mgr, (char*)&key[0], NULL);
-          res = setmgr_set_keys(mgr, (char*)&key[0], values, 1);
+          res = setmgr_set_keys(mgr, (char*)&key[0], values, 1, (time_t)timestamp);
       }
       else if (res < -1) {
           syslog(LOG_ERR, "Failure to add to key %s with value %s res: %d", (char*)&key[0], res);

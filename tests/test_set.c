@@ -143,10 +143,11 @@ START_TEST(test_set_add)
     char buf[100];
     for (int i=0;i<10000;i++) {
         snprintf((char*)&buf, 100, (char*)"foobar%d", i);
-        res = hset_add(set, (char*)&buf);
+        res = hset_add(set, (char*)&buf, 60);
         fail_unless(res == 0);
     }
 
+    printf("size %d\n", hset_size_total(set));
     fail_unless(hset_size_total(set) > 9800 && hset_size_total(set) < 10200);
     fail_unless(hset_byte_size(set) == 3280);
     fail_unless(counters->sets == 10000);
@@ -173,7 +174,7 @@ START_TEST(test_set_restore)
     char buf[100];
     for (int i=0;i<10000;i++) {
         snprintf((char*)&buf, 100, (char*)"foobar%d", i);
-        res = hset_add(set, (char*)&buf);
+        res = hset_add(set, (char*)&buf, 60);
         fail_unless(res == 0);
     }
 
@@ -212,7 +213,7 @@ START_TEST(test_set_flush)
     char buf[100];
     for (int i=0;i<10000;i++) {
         snprintf((char*)&buf, 100, (char*)"foobar%d", i);
-        res = hset_add(set, (char*)&buf);
+        res = hset_add(set, (char*)&buf, 60);
         fail_unless(res == 0);
     }
 
@@ -255,7 +256,7 @@ START_TEST(test_set_add_in_mem)
     char buf[100];
     for (int i=0;i<10000;i++) {
         snprintf((char*)&buf, 100, (char*)"foobar%d", i);
-        res = hset_add(set, (char*)&buf);
+        res = hset_add(set, (char*)&buf, 60);
         fail_unless(res == 0);
     }
 
@@ -285,18 +286,19 @@ START_TEST(test_set_page_out)
     char buf[100];
     for (int i=0;i<10000;i++) {
         snprintf((char*)&buf, 100, (char*)"foobar%d", i);
-        res = hset_add(set, (char*)&buf);
+        res = hset_add(set, (char*)&buf, 60);
         fail_unless(res == 0);
     }
 
     uint64_t size = hset_size_total(set);
+    printf("size %lld\n", (long long)size);
     fail_unless(size > 9800 && size < 10200);
     fail_unless(hset_close(set) == 0);
     fail_unless(counters->page_outs == 1);
     fail_unless(counters->page_ins == 0);
 
     // Force fault in with another add
-    res = hset_add(set, (char*)&buf);
+    res = hset_add(set, (char*)&buf, 60);
     fail_unless(res == 0);
 
     // Check the size again

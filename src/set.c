@@ -270,7 +270,7 @@ int hset_delete(struct hlld_set *set) {
  * @arg key The key to add
  * @return 0 on success.
  */
-int hset_add(struct hlld_set *set, char *key) {
+int hset_add(struct hlld_set *set, char *key, time_t time) {
     if (set->is_proxied) {
         if (thread_safe_fault(set) != 0) return -1;
     }
@@ -285,7 +285,7 @@ int hset_add(struct hlld_set *set, char *key) {
     // Add the hashed value and update the
     // counters
     LOCK_HLLD_SPIN(&set->hll_update);
-    hll_add_hash(&set->hll, out[1]);
+    hll_add_hash_at_time(&set->hll, out[1], time);
     set->counters.sets += 1;
     UNLOCK_HLLD_SPIN(&set->hll_update);
 

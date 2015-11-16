@@ -156,7 +156,7 @@ static void handle_set_cmd(hlld_conn_handler *handle, char *args, int args_len) 
     char *key_buf[] = {key};
 
     // Call into the set manager
-    int res = setmgr_set_keys(handle->mgr, args, (char**)&key_buf, 1);
+    int res = setmgr_set_keys(handle->mgr, args, (char**)&key_buf, 1, time(NULL));
 
     // Generate the response
     handle_set_cmd_resp(handle, res);
@@ -231,6 +231,7 @@ static void handle_set_multi_cmd(hlld_conn_handler *handle, char *args, int args
     char *curr_key = key;
     int res = 0;
     int index = 0;
+    time_t t = time(NULL);
     while (curr_key && *curr_key != '\0') {
         // Adds a zero terminator to the current key, scans forward
         buffer_after_terminator(key, key_len, ' ', &key, &key_len);
@@ -245,7 +246,7 @@ static void handle_set_multi_cmd(hlld_conn_handler *handle, char *args, int args
         // If we have filled the buffer, check now
         if (index == MULTI_OP_SIZE) {
             // Handle the keys now
-            res = setmgr_set_keys(handle->mgr, args, (char**)&key_buf, index);
+            res = setmgr_set_keys(handle->mgr, args, (char**)&key_buf, index, t);
             if (res) goto SEND_RESULT;
 
             // Reset the index
@@ -255,7 +256,7 @@ static void handle_set_multi_cmd(hlld_conn_handler *handle, char *args, int args
 
     // Handle any remaining keys
     if (index) {
-        res = setmgr_set_keys(handle->mgr, args, key_buf, index);
+        res = setmgr_set_keys(handle->mgr, args, key_buf, index, t);
     }
 
 SEND_RESULT:

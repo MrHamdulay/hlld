@@ -10,8 +10,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-static int NUM_THREADS = 1;
-static long long NUM_KEYS = 100000000;
+static int NUM_THREADS = 100;
+static long long NUM_KEYS = 1000000;
 static char* HOST = "127.0.0.1";
 static int PORT = 4553;
 static char *SET_NAME = "foobar%d";
@@ -106,8 +106,8 @@ void *thread_main(void *in) {
     gettimeofday(&end, NULL);
     printf("Set: %d msec. Num: %d\n", timediff(&start_set, &end), sets);
 
-    /*sprintf((char*)&info.cmd_buf, "drop %s\n", buf);
-    sent = send(info.conn_fd, (char*)&info.cmd_buf, strlen(info.cmd_buf), 0);*/
+    sprintf((char*)&info.cmd_buf, "drop %s\n", buf);
+    sent = send(info.conn_fd, (char*)&info.cmd_buf, strlen(info.cmd_buf), 0);
 
     return NULL;
 }

@@ -73,7 +73,7 @@ int setmgr_flush_set(struct hlld_setmgr *mgr, char *set_name);
  * @return 0 on success, -1 if the set does not exist.
  * -2 on internal error.
  */
-int setmgr_set_keys(struct hlld_setmgr *mgr, char *set_name, char **keys, int num_keys);
+int setmgr_set_keys(struct hlld_setmgr *mgr, char *set_name, char **keys, int num_keys, time_t time);
 
 /**
  * Estimates the size of a set

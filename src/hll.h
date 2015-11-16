@@ -60,7 +60,6 @@ int hll_destroy(hll_t *h);
  * @arg h The hll to add to
  * @arg key The key to add
  */
-void hll_add(hll_t *h, char *key);
 void hll_add_at_time(hll_t *h, char *key, time_t time);
 
 /**
@@ -68,7 +67,6 @@ void hll_add_at_time(hll_t *h, char *key, time_t time);
  * @arg h The hll to add to
  * @arg hash The hash to add
  */
-void hll_add_hash(hll_t *h, uint64_t hash);
 void hll_add_hash_at_time(hll_t *h, uint64_t hash, time_t time);
 
 /**

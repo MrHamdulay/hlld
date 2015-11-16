@@ -88,14 +88,14 @@ int hll_destroy(hll_t *h) {
  * @arg h The hll to add to
  * @arg key The key to add
  */
-void hll_add(hll_t *h, char *key) {
+/*void hll_add(hll_t *h, char *key) {
     // Compute the hash value of the key
     uint64_t out[2];
     MurmurHash3_x64_128(key, strlen(key), 0, &out);
 
     // Add the hashed value
     hll_add_hash(h, out[1]);
-}
+}*/
 void hll_add_at_time(hll_t *h, char *key, time_t time) {
     // Compute the hash value of the key
     uint64_t out[2];
@@ -130,7 +130,7 @@ void hll_register_remove_point(hll_register *r, size_t idx) {
  */
 void hll_register_add_point(hll_t *h, hll_register *r, hll_point p) {
     // remove all points with smaller register value or that have expired.
-    time_t max_time = p.timestamp - h->window_period/ h->window_precision;
+    long long max_time = p.timestamp - h->window_period/ h->window_precision;
     // do this in reverse order because we remove points from the right end
     for (int i=r->size-1; i>=0; i--) {
         if (r->points[i].register_ <= p.register_ ||
@@ -168,10 +168,6 @@ int hll_get_register(hll_t *h, int register_index, int time_length, time_t curre
     }
 
     return register_value;
-}
-
-void hll_add_hash(hll_t *hy, uint64_t hash) {
-    hll_add_hash_at_time(hy, hash, time(NULL));
 }
 
 /**

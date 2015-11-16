@@ -204,7 +204,7 @@ START_TEST(test_mgr_add_keys)
     fail_unless(res == 0);
 
     char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
-    res = setmgr_set_keys(mgr, (char*)"zab1", (char**)&keys, 3);
+    res = setmgr_set_keys(mgr, (char*)"zab1", (char**)&keys, 3, 100);
     fail_unless(res == 0);
 
     res = setmgr_drop_set(mgr, (char*)"zab1");
@@ -226,7 +226,7 @@ START_TEST(test_mgr_add_no_set)
     fail_unless(res == 0);
 
     char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
-    res = setmgr_set_keys(mgr, (char*)"noop1", (char**)&keys, 3);
+    res = setmgr_set_keys(mgr, (char*)"noop1", (char**)&keys, 3, 100);
     fail_unless(res == -1);
 
     res = destroy_set_manager(mgr);
@@ -338,7 +338,7 @@ START_TEST(test_mgr_unmap_add_keys)
 
     // Try to add keys now
     char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
-    res = setmgr_set_keys(mgr, (char*)"zab5", (char**)&keys, 3);
+    res = setmgr_set_keys(mgr, (char*)"zab5", (char**)&keys, 3, 100);
     fail_unless(res == 0);
 
     res = setmgr_drop_set(mgr, (char*)"zab5");
@@ -442,7 +442,7 @@ START_TEST(test_mgr_clear_reload)
 
     // Try to add keys now
     char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
-    res = setmgr_set_keys(mgr, (char*)"zab9", (char**)&keys, 3);
+    res = setmgr_set_keys(mgr, (char*)"zab9", (char**)&keys, 3, 100);
     fail_unless(res == 0);
 
     res = setmgr_unmap_set(mgr, (char*)"zab9");
@@ -462,7 +462,7 @@ START_TEST(test_mgr_clear_reload)
     uint64_t size;
     res = setmgr_set_size_total(mgr, (char*)"zab9", &size);
     fail_unless(res == 0);
-    fail_unless(size == 3);
+    fail_unless(size == 3, 100);
 
     res = setmgr_drop_set(mgr, (char*)"zab9");
     fail_unless(res == 0);
@@ -519,7 +519,7 @@ START_TEST(test_mgr_list_cold)
 
     // Check the keys in one, so that it stays hot
     char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
-    res = setmgr_set_keys(mgr, (char*)"zab6", (char**)&keys, 3);
+    res = setmgr_set_keys(mgr, (char*)"zab6", (char**)&keys, 3, 100);
     fail_unless(res == 0);
 
     // Check cold again
@@ -569,7 +569,7 @@ START_TEST(test_mgr_unmap_in_mem)
 
     // Try to add keys now
     char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
-    res = setmgr_set_keys(mgr, (char*)"mem1", (char**)&keys, 3);
+    res = setmgr_set_keys(mgr, (char*)"mem1", (char**)&keys, 3, 100);
     fail_unless(res == 0);
 
     res = setmgr_unmap_set(mgr, (char*)"mem1");
@@ -579,7 +579,7 @@ START_TEST(test_mgr_unmap_in_mem)
     uint64_t size;
     res = setmgr_set_size_total(mgr, (char*)"mem1", &size);
     fail_unless(res == 0);
-    fail_unless(size == 3);
+    fail_unless(size == 3, 100);
 
     res = setmgr_drop_set(mgr, (char*)"mem1");
     fail_unless(res == 0);
@@ -632,7 +632,7 @@ START_TEST(test_mgr_restore)
     fail_unless(res == 0);
 
     char *keys[] = {(char*)"hey",(char*)"there",(char*)"person"};
-    res = setmgr_set_keys(mgr, (char*)"zab8", (char**)&keys, 3);
+    res = setmgr_set_keys(mgr, (char*)"zab8", (char**)&keys, 3, 100);
     fail_unless(res == 0);
 
     // Shutdown
@@ -647,7 +647,7 @@ START_TEST(test_mgr_restore)
     uint64_t size;
     res = setmgr_set_size_total(mgr, (char*)"zab8", &size);
     fail_unless(res == 0);
-    fail_unless(size == 3);
+    fail_unless(size == 3, 100);
 
     res = setmgr_drop_set(mgr, (char*)"zab8");
     fail_unless(res == 0);

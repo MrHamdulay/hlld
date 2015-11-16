@@ -101,7 +101,7 @@ int hset_delete(struct hlld_set *set);
  * @arg key The key to add
  * @return 0 on success.
  */
-int hset_add(struct hlld_set *set, char *key);
+int hset_add(struct hlld_set *set, char *key, time_t time);
 
 /**
  * Gets the size of the set
