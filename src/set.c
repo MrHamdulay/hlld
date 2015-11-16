@@ -380,12 +380,12 @@ static int thread_safe_fault(struct hlld_set *s) {
     struct stat buf;
     res = stat(bitmap_path, &buf);
     if(res == 0) {
-        syslog(LOG_ERR, "Discovered HLL set: %s.", bitmap_path);
+        //syslog(LOG_ERR, "Discovered HLL set: %s.", bitmap_path);
     }
 
     // Handle if the file exists and contains data (read existing hll)
     if (res == 0 && buf.st_size != 0) {
-        syslog(LOG_ERR, "Discovered HLL set: %s.", bitmap_path);
+        //syslog(LOG_ERR, "Discovered HLL set: %s.", bitmap_path);
         res = unserialize_hll_from_filename(bitmap_path, &s->hll);
         if (res) {
             syslog(LOG_ERR, "Failed to load bitmap: %s. %s", bitmap_path, strerror(errno));
