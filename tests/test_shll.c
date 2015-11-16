@@ -113,9 +113,10 @@ START_TEST(test_shll_error_bound)
     fail_unless(hll_init(14, 100, 1, &h) == 0);
 
     char buf[100];
+    time_t cur_time = time(NULL);
     for (int i=0; i < 10000; i++) {
         fail_unless(sprintf((char*)&buf, "test%d", i));
-        hll_add_at_time(&h, (char*)&buf, 100);
+        hll_add_at_time(&h, (char*)&buf, cur_time);
     }
 
     // Should be within 1%

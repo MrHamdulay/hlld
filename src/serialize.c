@@ -138,7 +138,6 @@ int unserialize_hll_from_filename(char *filename, hll_t *h) {
 }
 
 int unserialize_hll_from_file(int fileno, uint64_t len, hll_t *h) {
-    printf("serializing from file\n");
     // Hack for old kernels and bad length checking
     if (len == 0) {
         return -EINVAL;
