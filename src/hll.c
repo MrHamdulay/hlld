@@ -49,9 +49,11 @@ int hll_init(unsigned char precision, int window_period, int window_precision, h
     h->window_period = window_period;
     h->window_precision = window_precision;
 
-    h->sparse = (hll_sparse*)malloc(sizeof(hll_sparse));
+    h->sparse = (hll_sparse*)calloc(sizeof(hll_sparse), 1);
+    h->sparse->size = 0;
     h->sparse->points = NULL;
-    //h->dense_registers = (hll_register*)calloc(reg, sizeof(hll_register));
+
+    h->dense_registers = NULL;
 
     return 0;
 }
@@ -72,7 +74,9 @@ int hll_destroy(hll_t *h) {
         h->dense_registers = NULL;
     } else {
         free(h->sparse->points);
+        h->sparse->points = NULL;
         free(h->sparse);
+        h->sparse = NULL;
     }
     return 0;
 }
@@ -82,14 +86,6 @@ int hll_destroy(hll_t *h) {
  * @arg h The hll to add to
  * @arg key The key to add
  */
-/*void hll_add(hll_t *h, char *key) {
-    // Compute the hash value of the key
-    uint64_t out[2];
-    MurmurHash3_x64_128(key, strlen(key), 0, &out);
-
-    // Add the hashed value
-    hll_add_hash(h, out[1]);
-}*/
 void hll_add_at_time(hll_t *h, char *key, time_t time) {
     // Compute the hash value of the key
     uint64_t out[2];
@@ -180,13 +176,17 @@ void convert_dense(hll_t *h) {
 void hll_sparse_remove_point(hll_t *h, size_t i) {
     h->sparse->points[i] = h->sparse->points[h->sparse->size];
     h->sparse->size--;
+    assert(h->sparse->size >= 0);
 }
 
 void hll_sparse_add_point(hll_t *h, uint64_t hash, time_t time_added) {
     hll_sparse *sparse = h->sparse;
     if (sparse->points == NULL) {
         sparse->capacity = 4;
-        sparse->points = (hll_sparse_point*)calloc(sparse->capacity, sizeof(hll_sparse_point));
+        sparse->size = 0;
+        sparse->points = (hll_sparse_point*)calloc(
+                sparse->capacity,
+                sizeof(hll_sparse_point));
     }
 
     int register_idx = hash >> (64 - h->precision);
@@ -201,7 +201,7 @@ void hll_sparse_add_point(hll_t *h, uint64_t hash, time_t time_added) {
     // it's the worst that this is duplicated code....
     long long max_time = time_added - h->window_period/ h->window_precision;
     // do this in reverse order because we remove points from the right end
-    for (int i=sparse->size; i>=0; i--) {
+    for (int i=sparse->size-1; i>=0; i--) {
         uint64_t other_hash = sparse->points[i].hash;
         // if we are inserting the same value again just break out
         if (other_hash == hash)
