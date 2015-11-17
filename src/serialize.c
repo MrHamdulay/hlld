@@ -76,7 +76,7 @@ int serialize_hll_register(serialize_t *s, hll_register *h) {
 int unserialize_hll_register(serialize_t *s, hll_register *h) {
     ERR(unserialize_long(s, &h->size));
     h->capacity = h->size;
-    h->points = (hll_point*)malloc(h->capacity*sizeof(hll_point));
+    h->points = (hll_dense_point*)malloc(h->capacity*sizeof(hll_dense_point));
     for (long i=0; i<h->size; i++) {
         ERR(unserialize_long(s, &h->points[i].timestamp));
         ERR(unserialize_long(s, &h->points[i].register_));
@@ -91,7 +91,7 @@ int serialize_hll(serialize_t *s, hll_t *h) {
     ERR(serialize_int(s, h->window_precision));
     int num_regs = NUM_REG(h->precision);
     for(int i=0; i<num_regs; i++) {
-        ERR(serialize_hll_register(s, &h->registers[i]));
+        ERR(serialize_hll_register(s, &h->dense_registers[i]));
     }
     return 0;
 }
@@ -108,9 +108,9 @@ int unserialize_hll(serialize_t *s, hll_t *h) {
     ERR(unserialize_int(s, &h->window_period));
     ERR(unserialize_int(s, &h->window_precision));
     int num_regs = NUM_REG(h->precision);
-    h->registers = (hll_register*)malloc(num_regs*sizeof(hll_register));
+    h->dense_registers = (hll_register*)malloc(num_regs*sizeof(hll_register));
     for(int i=0; i<num_regs; i++) {
-        ERR(unserialize_hll_register(s, &h->registers[i]));
+        ERR(unserialize_hll_register(s, &h->dense_registers[i]));
     }
     return 0;
 }
@@ -190,7 +190,7 @@ size_t serialized_hll_size(hll_t *h) {
 
     for(int i=0; i<NUM_REG(h->precision); i++) {
         // size, size*(timestamp, register)
-        size += sizeof(long) + 2*sizeof(long)*h->registers[i].size; 
+        size += sizeof(long) + 2*sizeof(long)*h->dense_registers[i].size; 
     }
     return size;
 }

@@ -11,24 +11,36 @@
 #define HLL_MIN_PRECISION 4      // 16 registers
 #define HLL_MAX_PRECISION 18     // 262,144 registers
 
+#define HLL_SPARSE 0
+#define HLL_DENSE 1
+
 typedef struct {
     time_t timestamp;
     long register_;
-} hll_point;
+} hll_dense_point;
+
+typedef struct {
+    time_t timestamp;
+    uint64_t hash;
+} hll_sparse_point;
 
 typedef struct {
     long size;
     long capacity;
-    hll_point *points;
+    hll_dense_point *points;
 } hll_register;
 
 typedef struct {
+    unsigned char representation;
     unsigned char precision;
     // amount of seconds worth of samples we store (in seconds)
     int window_period;
     // precision to which we keep samples (in seconds)
     int window_precision;
-    hll_register *registers;
+    union {
+        hll_register *dense_registers;
+        hll_sparse_point *sparse_points;
+    };
 } hll_t;
 
 /**
@@ -74,13 +86,13 @@ void hll_add_hash_at_time(hll_t *h, uint64_t hash, time_t time);
  * @arg h The hll to query
  * @return An estimate of the cardinality
  */
-double hll_size(hll_t *h, int time_length, time_t current_time);
+double hll_size(hll_t *h, time_t time_length, time_t current_time);
 double hll_size_total(hll_t *h);
 
 /**
  * Takes the union of a few sets and returns the cardinality
  */
-double hll_union_size(hll_t **hs, int num_hs, int time_length, time_t current_time);
+double hll_union_size(hll_t **hs, int num_hs, time_t time_length, time_t current_time);
 
 /**
  * Computes the minimum digits of precision
@@ -138,8 +150,8 @@ double hll_bias_estimate(hll_t *hu, double raw_est);
  * @arg r The register to add the point to
  * @arg p The time/leading point to add to the register
  */
-void hll_register_add_point(hll_t *h, hll_register *r, hll_point p);
+void hll_register_add_point(hll_t *h, hll_register *r, hll_dense_point p);
 
-int hll_get_register(hll_t *h, int register_index, int time_length, time_t current_time);
+int hll_get_register(hll_t *h, int register_index, time_t time_length, time_t current_time);
 
 #endif

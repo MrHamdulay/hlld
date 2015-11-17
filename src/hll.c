@@ -50,7 +50,7 @@ int hll_init(unsigned char precision, int window_period, int window_precision, h
     // Determine how many registers are needed
     int reg = NUM_REG(precision);
 
-    h->registers = (hll_register*)calloc(reg, sizeof(hll_register));
+    h->dense_registers = (hll_register*)calloc(reg, sizeof(hll_register));
 
     return 0;
 }
@@ -74,12 +74,12 @@ int hll_init(unsigned char precision, int window_period, int window_precision, h
  */
 int hll_destroy(hll_t *h) {
     for(int i=0; i<NUM_REG(h->precision); i++) {
-        if(h->registers[i].points != NULL) {
-            free(h->registers[i].points);
+        if(h->dense_registers[i].points != NULL) {
+            free(h->dense_registers[i].points);
         }
     }
-    free(h->registers);
-    h->registers = NULL;
+    free(h->dense_registers);
+    h->dense_registers = NULL;
     return 0;
 }
 
@@ -119,7 +119,7 @@ void hll_register_remove_point(hll_register *r, size_t idx) {
     if (r->size*GROWTH_FACTOR*GROWTH_FACTOR < r->capacity) {
         r->capacity = r->capacity/GROWTH_FACTOR+1;
         assert(r->capacity > r->size);
-        r->points = (hll_point*)realloc(r->points, r->capacity*sizeof(hll_point));
+        r->points = (hll_dense_point*)realloc(r->points, r->capacity*sizeof(hll_dense_point));
     }
 }
 
@@ -128,7 +128,7 @@ void hll_register_remove_point(hll_register *r, size_t idx) {
  * @arg r The register to add the point to
  * @arg p The time/leading point to add to the register
  */
-void hll_register_add_point(hll_t *h, hll_register *r, hll_point p) {
+void hll_register_add_point(hll_t *h, hll_register *r, hll_dense_point p) {
     // remove all points with smaller register value or that have expired.
     long long max_time = p.timestamp - h->window_period/ h->window_precision;
     // do this in reverse order because we remove points from the right end
@@ -145,7 +145,7 @@ void hll_register_add_point(hll_t *h, hll_register *r, hll_point p) {
     if(r->size > r->capacity) {
 
         r->capacity = (size_t)(GROWTH_FACTOR * r->capacity + 1);
-        r->points = (hll_point*)realloc(r->points, r->capacity*sizeof(hll_point));
+        r->points = (hll_dense_point*)realloc(r->points, r->capacity*sizeof(hll_dense_point));
     }
 
     assert((long long)r->size-1 >= 0);
@@ -154,8 +154,8 @@ void hll_register_add_point(hll_t *h, hll_register *r, hll_point p) {
     r->points[r->size-1] = p;
 }
 
-int hll_get_register(hll_t *h, int register_index, int time_length, time_t current_time) {
-    hll_register *r = &h->registers[register_index];
+int hll_get_register(hll_t *h, int register_index, time_t time_length, time_t current_time) {
+    hll_register *r = &h->dense_registers[register_index];
 
     time_t min_time = current_time - time_length/h->window_precision;
     int register_value = 0;
@@ -184,8 +184,8 @@ void hll_add_hash_at_time(hll_t *h, uint64_t hash, time_t time_added) {
     // Determine the count of leading zeros
     int leading = __builtin_clzll(hash) + 1;
 
-    hll_point p = {time_added, leading};
-    hll_register *r = &h->registers[idx];
+    hll_dense_point p = {time_added, leading};
+    hll_register *r = &h->dense_registers[idx];
 
     hll_register_add_point(h, r, p);
 }
@@ -193,7 +193,7 @@ void hll_add_hash_at_time(hll_t *h, uint64_t hash, time_t time_added) {
 /*
  * Computes the raw cardinality estimate
  */
-static double hll_raw_estimate_union(hll_t **h, int num_hls, int *num_zero, int time_length, time_t current_time) {
+static double hll_raw_estimate_union(hll_t **h, int num_hls, int *num_zero, time_t time_length, time_t current_time) {
     unsigned char precision = h[0]->precision;
     int num_reg = NUM_REG(precision);
     double multi = hll_alpha(precision) * num_reg * num_reg;
@@ -361,7 +361,7 @@ uint64_t hll_bytes_for_precision(int prec) {
  * @arg h The hll to query
  * @return An estimate of the cardinality
  */
-double hll_size(hll_t *h, int time_length, time_t current_time) {
+double hll_size(hll_t *h, time_t time_length, time_t current_time) {
     int num_zero = 0;
     hll_t *hs[] = {h};
     double raw_est = hll_raw_estimate_union(hs, 1, &num_zero, time_length, current_time);
@@ -399,7 +399,7 @@ double hll_size_total(hll_t *h) {
  *
  * returns -1 when the precision of all the hll's do not match
  */
-double hll_union_size(hll_t **hs, int num_hs, int time_length, time_t current_time) {
+double hll_union_size(hll_t **hs, int num_hs, time_t time_length, time_t current_time) {
     // the precision of each hll needs to be the same
     int precision = (int)hs[0]->precision;
     for(int i=1; i<num_hs; i++) {

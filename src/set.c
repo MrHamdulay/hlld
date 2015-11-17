@@ -302,19 +302,17 @@ int hset_add(struct hlld_set *set, char *key, time_t time) {
  * @return The estimated size of the set
  */
 uint64_t hset_size_total(struct hlld_set *set) {
-    if (!set->is_proxied) {
-        return hll_size_total(&set->hll);
-    } else {
-        return set->set_config.size;
+    if (set->is_proxied) {
+        if (thread_safe_fault(set) != 0) return -1;
     }
+    return hll_size_total(&set->hll);
 }
 
 uint64_t hset_size(struct hlld_set *set, uint64_t time_window, time_t current_time) {
-    if (!set->is_proxied) {
-        return hll_size(&set->hll, (int)time_window, current_time);
-    } else {
-        return set->set_config.size;
+    if (set->is_proxied) {
+        if (thread_safe_fault(set) != 0) return -1;
     }
+    return hll_size(&set->hll, (int)time_window, current_time);
 }
 
 /**
@@ -325,6 +323,7 @@ uint64_t hset_size(struct hlld_set *set, uint64_t time_window, time_t current_ti
  * @arg current_time the current time
  */
 uint64_t hset_size_union(struct hlld_set **sets, int num_sets, uint64_t time_window, time_t current_time) {
+    printf("querying union size\n");
     hll_t **hlls = (hll_t **)malloc(sizeof(hll_t)*num_sets);
     for(int i=0; i<num_sets; i++) {
         hlls[i] = &sets[i]->hll;
