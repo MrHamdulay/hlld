@@ -49,9 +49,6 @@ int hll_init(unsigned char precision, int window_period, int window_precision, h
     h->window_period = window_period;
     h->window_precision = window_precision;
 
-    // Determine how many registers are needed
-    int reg = NUM_REG(precision);
-
     h->sparse = (hll_sparse*)malloc(sizeof(hll_sparse));
     h->sparse->points = NULL;
     //h->dense_registers = (hll_register*)calloc(reg, sizeof(hll_register));
@@ -205,7 +202,7 @@ void hll_sparse_add_point(hll_t *h, uint64_t hash, time_t time_added) {
     long long max_time = time_added - h->window_period/ h->window_precision;
     // do this in reverse order because we remove points from the right end
     for (int i=sparse->size; i>=0; i--) {
-        int other_hash = sparse->points[i].hash;
+        uint64_t other_hash = sparse->points[i].hash;
         // if we are inserting the same value again just break out
         if (other_hash == hash)
             return;
@@ -229,9 +226,9 @@ void hll_sparse_add_point(hll_t *h, uint64_t hash, time_t time_added) {
         sparse->capacity *= 1.5;
 
         // if increasing the capacity takes us over the limit convert to dense representation
-        size_t max_size = 0;
+        int max_size = 0;
         // convert to the dense representation
-        if (sparse->capacity >max_size) {
+        if (sparse->capacity > max_size) {
             convert_dense(h);
             assert(h->representation == HLL_DENSE);
             hll_add_hash_at_time(h, hash, time_added);
@@ -444,29 +441,40 @@ uint64_t hll_bytes_for_precision(int prec) {
  * @return An estimate of the cardinality
  */
 double hll_size(hll_t *h, time_t time_length, time_t current_time) {
-    int num_zero = 0;
-    hll_t *hs[] = {h};
-    double raw_est = hll_raw_estimate_union(hs, 1, &num_zero, time_length, current_time);
+    if (h->representation == HLL_DENSE) {
+        int num_zero = 0;
+        hll_t *hs[] = {h};
+        double raw_est = hll_raw_estimate_union(hs, 1, &num_zero, time_length, current_time);
 
-    // Check if we need to apply bias correction
-    int num_reg = NUM_REG(h->precision);
-    if (raw_est <= 5 * num_reg) {
-        raw_est -= hll_bias_estimate(h, raw_est);
-    }
+        // Check if we need to apply bias correction
+        int num_reg = NUM_REG(h->precision);
+        if (raw_est <= 5 * num_reg) {
+            raw_est -= hll_bias_estimate(h, raw_est);
+        }
 
-    // Check if linear counting should be used
-    double alt_est;
-    if (num_zero) {
-        alt_est = hll_linear_count(h, num_zero);
+        // Check if linear counting should be used
+        double alt_est;
+        if (num_zero) {
+            alt_est = hll_linear_count(h, num_zero);
+        } else {
+            alt_est = raw_est;
+        }
+
+        // Determine which estimate to use
+        if (alt_est <= switchThreshold[h->precision-4]) {
+            return alt_est;
+        } else {
+            return raw_est;
+        }
     } else {
-        alt_est = raw_est;
-    }
-
-    // Determine which estimate to use
-    if (alt_est <= switchThreshold[h->precision-4]) {
-        return alt_est;
-    } else {
-        return raw_est;
+        double size = 0;
+        for(int i=0; i<h->sparse->size; i++) {
+            if (h->sparse->points[i].timestamp >= current_time - time_length &&
+                h->sparse->points[i].timestamp <= current_time) {
+                size++;
+            }
+        }
+        return size;
     }
 }
 
