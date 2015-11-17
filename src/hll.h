@@ -31,16 +31,21 @@ typedef struct {
 } hll_register;
 
 typedef struct {
+    int capacity;
+    int size;
+    hll_sparse_point *points;
+} hll_sparse;
+
+typedef struct {
     unsigned char representation;
     unsigned char precision;
     // amount of seconds worth of samples we store (in seconds)
     int window_period;
     // precision to which we keep samples (in seconds)
     int window_precision;
-    union {
-        hll_register *dense_registers;
-        hll_sparse_point *sparse_points;
-    };
+    int sparse_points_len;
+    hll_register *dense_registers;
+    hll_sparse *sparse;
 } hll_t;
 
 /**

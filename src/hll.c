@@ -39,10 +39,12 @@ extern void MurmurHash3_x64_128(const void * key, const int len, const uint32_t 
  */
 int hll_init(unsigned char precision, int window_period, int window_precision, hll_t *h) {
     if (precision < HLL_MIN_PRECISION || precision > HLL_MAX_PRECISION || 
-        window_period <= 0 || window_precision <= 0)
+        window_period <= 0 || window_precision <= 0) {
         return -1;
+    }
 
     // Store parameters
+    h->representation = HLL_SPARSE;
     h->precision = precision;
     h->window_period = window_period;
     h->window_precision = window_precision;
@@ -50,22 +52,12 @@ int hll_init(unsigned char precision, int window_period, int window_precision, h
     // Determine how many registers are needed
     int reg = NUM_REG(precision);
 
-    h->dense_registers = (hll_register*)calloc(reg, sizeof(hll_register));
+    h->sparse = (hll_sparse*)malloc(sizeof(hll_sparse));
+    h->sparse->points = NULL;
+    //h->dense_registers = (hll_register*)calloc(reg, sizeof(hll_register));
 
     return 0;
 }
-
-
-/**
- * Initializes a new HLL from a bitmap
- * @arg precision The digits of precision to use
- * @arg bm The bitmap to use
- * @arg h The HLL to initialize
- * @return 0 on success
- */
-/*int hll_init_from_bitmap(unsigned char precision, hlld_bitmap *bm, hll_t *h) {
-    return -1*precision + (int)bm + (int)h;
-}*/
 
 
 /**
@@ -73,13 +65,18 @@ int hll_init(unsigned char precision, int window_period, int window_precision, h
  * @return 0 on success
  */
 int hll_destroy(hll_t *h) {
-    for(int i=0; i<NUM_REG(h->precision); i++) {
-        if(h->dense_registers[i].points != NULL) {
-            free(h->dense_registers[i].points);
+    if (h->representation == HLL_DENSE) {
+        for(int i=0; i<NUM_REG(h->precision); i++) {
+            if(h->dense_registers[i].points != NULL) {
+                free(h->dense_registers[i].points);
+            }
         }
+        free(h->dense_registers);
+        h->dense_registers = NULL;
+    } else {
+        free(h->sparse->points);
+        free(h->sparse);
     }
-    free(h->dense_registers);
-    h->dense_registers = NULL;
     return 0;
 }
 
@@ -169,25 +166,110 @@ int hll_get_register(hll_t *h, int register_index, time_t time_length, time_t cu
     return register_value;
 }
 
+void convert_dense(hll_t *h) {
+    // converting an already converted repr is a no-op
+    if (h->representation == HLL_DENSE)
+        return;
+    h->representation = HLL_DENSE;
+    h->dense_registers = (hll_register*)calloc(NUM_REG(h->precision), sizeof(hll_register));
+
+    for(int i=0; i<h->sparse->size; i++) {
+        hll_add_hash_at_time(h, h->sparse->points[i].hash, h->sparse->points[i].timestamp);
+    }
+    free(h->sparse->points);
+    free(h->sparse);
+}
+
+void hll_sparse_remove_point(hll_t *h, size_t i) {
+    h->sparse->points[i] = h->sparse->points[h->sparse->size];
+    h->sparse->size--;
+}
+
+void hll_sparse_add_point(hll_t *h, uint64_t hash, time_t time_added) {
+    hll_sparse *sparse = h->sparse;
+    if (sparse->points == NULL) {
+        sparse->capacity = 4;
+        sparse->points = (hll_sparse_point*)calloc(sparse->capacity, sizeof(hll_sparse_point));
+    }
+
+    int register_idx = hash >> (64 - h->precision);
+
+    // Shift out the index bits
+    uint64_t hash2 = hash << h->precision | (1 << (h->precision -1));
+
+    // Determine the count of leading zeros
+    int leading_insert = __builtin_clzll(hash2) + 1;
+    
+    // remove all points with smaller register value or that have expired.
+    // it's the worst that this is duplicated code....
+    long long max_time = time_added - h->window_period/ h->window_precision;
+    // do this in reverse order because we remove points from the right end
+    for (int i=sparse->size; i>=0; i--) {
+        int other_hash = sparse->points[i].hash;
+        // if we are inserting the same value again just break out
+        if (other_hash == hash)
+            return;
+
+        int register_index_other = other_hash >> (64 - h->precision);
+        other_hash = other_hash << h->precision | (1 << (h->precision -1));
+        int leading_other = __builtin_clzll(other_hash)+1;
+        
+        // if it's the same register, the time is out of the max time bound 
+        // or the leading values are smaller then remove
+        if (register_idx == register_index_other &&
+            (
+            leading_other <= leading_insert ||
+            sparse->points[i].timestamp <= max_time
+            )) {
+            hll_sparse_remove_point(h, i);
+        }
+    }
+
+    if (sparse->size+1 >= h->sparse->capacity) {
+        sparse->capacity *= 1.5;
+
+        // if increasing the capacity takes us over the limit convert to dense representation
+        size_t max_size = 0;
+        // convert to the dense representation
+        if (sparse->capacity >max_size) {
+            convert_dense(h);
+            assert(h->representation == HLL_DENSE);
+            hll_add_hash_at_time(h, hash, time_added);
+            return;
+        }
+        // increase size of array
+        sparse->points = (hll_sparse_point*)realloc(
+                sparse->points,
+                sparse->capacity*sizeof(hll_sparse_point));
+    }
+    sparse->points[sparse->size].hash = hash;
+    sparse->points[sparse->size].timestamp = time_added;
+    sparse->size++;
+}
+
 /**
  * Adds a new hash to the SHLL
  * @arg h The hll to add to
  * @arg hash The hash to add
  */
 void hll_add_hash_at_time(hll_t *h, uint64_t hash, time_t time_added) {
-    // Determine the index using the first p bits
-    int idx = hash >> (64 - h->precision);
+    if (h->representation == HLL_DENSE) {
+        // Determine the index using the first p bits
+        int idx = hash >> (64 - h->precision);
 
-    // Shift out the index bits
-    hash = hash << h->precision | (1 << (h->precision -1));
+        // Shift out the index bits
+        hash = hash << h->precision | (1 << (h->precision -1));
 
-    // Determine the count of leading zeros
-    int leading = __builtin_clzll(hash) + 1;
+        // Determine the count of leading zeros
+        int leading = __builtin_clzll(hash) + 1;
 
-    hll_dense_point p = {time_added, leading};
-    hll_register *r = &h->dense_registers[idx];
+        hll_dense_point p = {time_added, leading};
+        hll_register *r = &h->dense_registers[idx];
 
-    hll_register_add_point(h, r, p);
+        hll_register_add_point(h, r, p);
+    } else {
+        hll_sparse_add_point(h, hash, time_added);
+    }
 }
 
 /*
