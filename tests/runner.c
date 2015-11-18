@@ -27,7 +27,7 @@ int main(void)
     int nf;
 
     // Add the config tests
-    suite_add_tcase(s1, tc1);
+    /*suite_add_tcase(s1, tc1);
     tcase_add_test(tc1, test_config_get_default);
     tcase_add_test(tc1, test_config_bad_file);
     tcase_add_test(tc1, test_config_empty_file);
@@ -135,7 +135,7 @@ int main(void)
     tcase_add_test(tc8, test_shll_remove_time);
     tcase_add_test(tc8, test_shll_shrink_register);
     tcase_add_test(tc8, test_shll_error_bound);
-    tcase_add_test(tc8, test_shll_time_queries);
+    tcase_add_test(tc8, test_shll_time_queries);*/
 
     suite_add_tcase(s1, tc9);
     tcase_set_timeout(tc8, 3);

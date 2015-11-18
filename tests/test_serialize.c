@@ -15,6 +15,7 @@ START_TEST(test_hll_serialize)
     s.offset = 0;
     fail_unless(unserialize_hll(&s, &h_unserialize) == 0);
 
+    fail_unless(h_unserialize.representation == HLL_SPARSE);
     fail_unless(h_unserialize.precision == HLL_MIN_PRECISION);
     fail_unless(h_unserialize.window_period == 100);
     fail_unless(h_unserialize.window_precision == 1);
@@ -50,6 +51,7 @@ START_TEST(test_hll_serialize_registers)
     
     hll_t h, h_unserialize;
     fail_unless(hll_init(HLL_MIN_PRECISION, 100, 1, &h) == 0);
+    hll_convert_dense(&h);
 
     hll_dense_point p = {2, 2};
     hll_register_add_point(&h, &h.dense_registers[0], p);
@@ -91,18 +93,23 @@ START_TEST(test_serialize_primitives)
     long e2 = 0;
     unsigned char t3 = 7;
     unsigned char e3 = 0;
+    time_t t4 = 10001;
+    time_t e4 = 0;
 
     fail_unless(serialize_int(&s, t1) == 0);
     fail_unless(serialize_long(&s, t2) == 0);
     fail_unless(serialize_unsigned_char(&s, t3) == 0);
+    fail_unless(serialize_time(&s, t4) == 0);
 
     s.offset = 0;
     fail_unless(unserialize_int(&s, &e1) == 0);
     fail_unless(unserialize_long(&s, &e2) == 0);
     fail_unless(unserialize_unsigned_char(&s, &e3) == 0);
+    fail_unless(unserialize_time(&s, &e4) == 0);
 
     fail_unless(t1 == e1);
     fail_unless(t2 == e2);
     fail_unless(t3 == e3);
+    fail_unless(t4 == e4);
 }
 END_TEST

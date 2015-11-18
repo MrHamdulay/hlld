@@ -12,7 +12,7 @@
 #include <signal.h>
 #include "hll.h"
 
-#define SERIAL_VERSION 1
+#define SERIAL_VERSION 2
 #define ERR(err) if (err == -1) { return -1; }
 
  int serialize_int(serialize_t *s, int i) {
@@ -23,7 +23,7 @@
     return 0;
 }
 
- int unserialize_int(serialize_t *s, int *i) {
+int unserialize_int(serialize_t *s, int *i) {
     if (s->offset + sizeof(int) >= s->size)
         return -1;
     *i = *(int*)(s->memory+s->offset);
@@ -39,6 +39,42 @@
     return 0;
 }
 
+int serialize_time(serialize_t *s, time_t t) {
+    unsigned char *time_char = (unsigned char*)&t;
+    ERR(serialize_unsigned_char(s, time_char[0]));
+    ERR(serialize_unsigned_char(s, time_char[1]));
+    ERR(serialize_unsigned_char(s, time_char[2]));
+    ERR(serialize_unsigned_char(s, time_char[3]));
+    return 0;
+}
+
+int unserialize_time(serialize_t *s, time_t *i) {
+    unsigned char t2[4];
+    unsigned char *t = t2;
+    ERR(unserialize_unsigned_char(s, &t[0]));
+    ERR(unserialize_unsigned_char(s, &t[1]));
+    ERR(unserialize_unsigned_char(s, &t[2]));
+    ERR(unserialize_unsigned_char(s, &t[3]));
+    *i = *((time_t*)t);
+    return 0;
+}
+
+int serialize_ulong_long(serialize_t *s, uint64_t i) {
+    if (s->offset + sizeof(uint64_t) >= s->size)
+        return -1;
+    *(uint64_t*)(s->memory+s->offset) = i;
+    s->offset += sizeof(uint64_t);
+    return 0;
+}
+
+int unserialize_ulong_long(serialize_t *s, uint64_t *i) {
+    if (s->offset + sizeof(uint64_t) >= s->size)
+        return -1;
+    *i = *((uint64_t*)s->memory+s->offset);
+    s->offset += sizeof(uint64_t);
+    return 0;
+}
+
  int unserialize_long(serialize_t *s, long *i) {
     if (s->offset + sizeof(long) >= s->size)
         return -1;
@@ -47,7 +83,7 @@
     return 0;
 }
 
- int serialize_unsigned_char(serialize_t *s, unsigned char c) {
+int serialize_unsigned_char(serialize_t *s, unsigned char c) {
     if (s->offset + sizeof(char) >= s->size)
         return -1;
     s->memory[s->offset] = c;
@@ -55,7 +91,7 @@
     return 0;
 }
 
- int unserialize_unsigned_char(serialize_t *s, unsigned char *c) {
+int unserialize_unsigned_char(serialize_t *s, unsigned char *c) {
     if (s->offset + sizeof(char) >= s->size)
         return -1;
     *c = s->memory[s->offset];
@@ -67,7 +103,7 @@
 int serialize_hll_register(serialize_t *s, hll_register *h) {
     ERR(serialize_long(s, h->size));
     for (long i=0; i<h->size; i++) {
-        ERR(serialize_long(s, h->points[i].timestamp));
+        ERR(serialize_time(s, h->points[i].timestamp));
         ERR(serialize_long(s, h->points[i].register_));
     }
     return 0;
@@ -78,20 +114,41 @@ int unserialize_hll_register(serialize_t *s, hll_register *h) {
     h->capacity = h->size;
     h->points = (hll_dense_point*)malloc(h->capacity*sizeof(hll_dense_point));
     for (long i=0; i<h->size; i++) {
-        ERR(unserialize_long(s, &h->points[i].timestamp));
+        ERR(unserialize_time(s, &h->points[i].timestamp));
         ERR(unserialize_long(s, &h->points[i].register_));
     }
     return 0;
 }
 
+int serialize_hll_sparse_point(serialize_t *s, hll_sparse_point p) {
+    ERR(serialize_time(s, p.timestamp));
+    ERR(serialize_ulong_long(s, p.hash));
+    return 0;
+}
+
+int unserialize_hll_sparse_point(serialize_t *s, hll_sparse_point *p) {
+    p->timestamp++;
+    ERR(unserialize_time(s, &p->timestamp));
+    ERR(unserialize_ulong_long(s, &p->hash));
+    return 0;
+}
+
 int serialize_hll(serialize_t *s, hll_t *h) {
     ERR(serialize_int(s, SERIAL_VERSION));
+    ERR(serialize_int(s, (int)h->representation));
     ERR(serialize_int(s, (int)h->precision));
     ERR(serialize_int(s, h->window_period));
     ERR(serialize_int(s, h->window_precision));
     int num_regs = NUM_REG(h->precision);
-    for(int i=0; i<num_regs; i++) {
-        ERR(serialize_hll_register(s, &h->dense_registers[i]));
+    if (h->representation == HLL_DENSE) {
+        for(int i=0; i<num_regs; i++) {
+            ERR(serialize_hll_register(s, &h->dense_registers[i]));
+        }
+    } else {
+        ERR(serialize_int(s, h->sparse->size));
+        for(int i=0; i<h->sparse->size; i++) {
+            ERR(serialize_hll_sparse_point(s, h->sparse->points[i]));
+        }
     }
     return 0;
 }
@@ -102,15 +159,27 @@ int unserialize_hll(serialize_t *s, hll_t *h) {
     if (version != SERIAL_VERSION) {
         return -1;
     }
-    int precision;
-    ERR(unserialize_int(s, &precision));
-    h->precision = (unsigned char)precision;
+    int temp;
+    ERR(unserialize_int(s, &temp));
+    h->representation = (unsigned char)temp;
+    ERR(unserialize_int(s, &temp));
+    h->precision = (unsigned char)temp;
     ERR(unserialize_int(s, &h->window_period));
     ERR(unserialize_int(s, &h->window_precision));
     int num_regs = NUM_REG(h->precision);
-    h->dense_registers = (hll_register*)malloc(num_regs*sizeof(hll_register));
-    for(int i=0; i<num_regs; i++) {
-        ERR(unserialize_hll_register(s, &h->dense_registers[i]));
+    if (h->representation == HLL_DENSE) {
+        h->dense_registers = (hll_register*)malloc(num_regs*sizeof(hll_register));
+        for(int i=0; i<num_regs; i++) {
+            ERR(unserialize_hll_register(s, &h->dense_registers[i]));
+        }
+    } else {
+        h->sparse = (hll_sparse*)calloc(sizeof(hll_sparse), 1);
+        ERR(unserialize_int(s, &h->sparse->size));
+        h->sparse->capacity = h->sparse->size;
+        h->sparse->points = (hll_sparse_point*)calloc(sizeof(hll_sparse_point), h->sparse->size);
+        for(int i=0; i<h->sparse->size; i++) {
+            ERR(unserialize_hll_sparse_point(s, &h->sparse->points[i]));
+        }
     }
     return 0;
 }
@@ -185,12 +254,16 @@ int unserialize_hll_from_file(int fileno, uint64_t len, hll_t *h) {
 }
 
 size_t serialized_hll_size(hll_t *h) {
-    // VERSION, precision, window_period, window_precision
-    size_t size = sizeof(int)*3 + sizeof(long);
+    // VERSION, type, precision, window_period, window_precision
+    size_t size = sizeof(int)*4 + sizeof(long);
 
-    for(int i=0; i<NUM_REG(h->precision); i++) {
-        // size, size*(timestamp, register)
-        size += sizeof(long) + 2*sizeof(long)*h->dense_registers[i].size; 
+    if (h->representation == HLL_DENSE) {
+        for(int i=0; i<NUM_REG(h->precision); i++) {
+            // size, size*(timestamp, register)
+            size += sizeof(long) + (sizeof(long)+sizeof(time_t))*h->dense_registers[i].size; 
+        }
+    } else {
+        size += sizeof(int) + h->sparse->size*(sizeof(time_t)+sizeof(uint64_t));
     }
     return size;
 }

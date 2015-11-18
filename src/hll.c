@@ -159,7 +159,7 @@ int hll_get_register(hll_t *h, int register_index, time_t time_length, time_t cu
     return register_value;
 }
 
-void convert_dense(hll_t *h) {
+void hll_convert_dense(hll_t *h) {
     // converting an already converted repr is a no-op
     if (h->representation == HLL_DENSE)
         return;
@@ -226,10 +226,10 @@ void hll_sparse_add_point(hll_t *h, uint64_t hash, time_t time_added) {
         sparse->capacity *= 1.5;
 
         // if increasing the capacity takes us over the limit convert to dense representation
-        int max_size = 0;
+        const int max_size = NUM_REG(h->precision);
         // convert to the dense representation
         if (sparse->capacity > max_size) {
-            convert_dense(h);
+            hll_convert_dense(h);
             assert(h->representation == HLL_DENSE);
             hll_add_hash_at_time(h, hash, time_added);
             return;
