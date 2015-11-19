@@ -56,7 +56,6 @@ int init_set(struct hlld_config *config, char *set_name, int discover, struct hl
     s->is_dirty = 1;
     s->is_proxied = 1;
     s->hll.precision = config->default_precision;
-    printf("precision %d\n", (int)s->hll.precision);
 
     // Store the things
     s->config = config;

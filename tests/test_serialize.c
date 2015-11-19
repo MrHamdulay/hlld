@@ -141,6 +141,7 @@ START_TEST(test_hll_serialize_sparse) {
     fail_unless(unserialize_hll(&s, &h_unserialize) == 0);
 
     double size = hll_size_total(&h_unserialize);
+    fail_unless(h_unserialize.representation == HLL_SPARSE);
     fail_unless(97 < size && 102 > size);
 
     fail_unless(hll_destroy(&h_unserialize) == 0);

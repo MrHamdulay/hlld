@@ -283,7 +283,6 @@ START_TEST(test_set_page_out)
 
     hlld_set *set = NULL;
     res = init_set(&config, (char*)"test_set10", 0, &set);
-    printf("precision %d\n", (int)set->hll.precision);
     fail_unless(res == 0);
 
     set_counters *counters = hset_counters(set);
