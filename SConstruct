@@ -1,15 +1,15 @@
 import platform
 plat = platform.system()
 
-envmurmur = Environment(CC='clang', CXX='clang++', CPPPATH = ['deps/murmurhash/'], CPPFLAGS="-fno-exceptions -O2")
+envmurmur = Environment(CC='clang', CXX='clang++', CPPPATH = ['deps/murmurhash/'], CPPFLAGS="-fno-exceptions -O0")
 murmur = envmurmur.Library('murmur', Glob("deps/murmurhash/*.cpp"))
 
-envinih = Environment(CC='gcc-4.9', CXX='g++-4.9', CPATH = ['deps/inih/'], CFLAGS="-O2")
+envinih = Environment(CC='gcc-4.9', CXX='g++-4.9', CPATH = ['deps/inih/'], CFLAGS="-O0")
 inih = envinih.Library('inih', Glob("deps/inih/*.c"))
 
-env_with_err = Environment(CC='g++-4.9', CXX='g++-4.9', CFLAGS='', CXXFLAGS='-std=c++11', CCFLAGS = '-g -D_GNU_SOURCE -Wall -Wextra -Werror -O2 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/ -Igen-cpp/')
-env_without_unused_err = Environment(CC='g++-4.9', CXX='g++-4.9', CFLAGS='', CXXFLAGS='-std=c++11', CCFLAGS = '-g -D_GNU_SOURCE -Wall -Wextra -Wno-unused-function -Wno-unused-result -Werror -O2 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/ -Igen-cpp/')
-env_without_err = Environment(CC='g++-4.9', CXX='g++-4.9', CFLAGS='', CXXFLAGS='-std=c++11', CCFLAGS = '-g -D_GNU_SOURCE -O2 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/ -Igen-cpp/')
+env_with_err = Environment(CC='g++-4.9', CXX='g++-4.9', CFLAGS='', CXXFLAGS='-std=c++11', CCFLAGS = '-g -D_GNU_SOURCE -Wall -Wextra -Werror -O0 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/ -Igen-cpp/')
+env_without_unused_err = Environment(CC='g++-4.9', CXX='g++-4.9', CFLAGS='', CXXFLAGS='-std=c++11', CCFLAGS = '-g -D_GNU_SOURCE -Wall -Wextra -Wno-unused-function -Wno-unused-result -Werror -O0 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/ -Igen-cpp/')
+env_without_err = Environment(CC='g++-4.9', CXX='g++-4.9', CFLAGS='', CXXFLAGS='-std=c++11', CCFLAGS = '-g -D_GNU_SOURCE -O0 -pthread -Isrc/ -Ideps/inih/ -Ideps/libev/ -Igen-cpp/')
 
 objs =  env_with_err.Object('src/config', 'src/config.c') + \
         env_with_err.Object('src/convert', 'src/convert.c') + \
@@ -41,7 +41,7 @@ if plat == "Darwin":
 else:
     test = env_without_unused_err.Program('test_runner', objs + Glob("tests/runner.c"), LIBS=libs + ["check"])
 
-bench_obj = Object("bench", "bench.c", CXXFLAGS='-std=c++11', CCFLAGS=" -O2")
+bench_obj = Object("bench", "bench.c", CXXFLAGS='-std=c++11', CCFLAGS=" -O0")
 Program('bench', bench_obj, LIBS=["pthread"])
 
 # By default, only compile hlld

@@ -8,7 +8,7 @@ START_TEST(test_hll_serialize)
     serialize_t s = { buf, 0, 2048 };
     
     hll_t h, h_unserialize;
-    fail_unless(hll_init(HLL_MIN_PRECISION, 100, 1, &h) == 0);
+    fail_unless(hll_init(HLL_MIN_PRECISION, 100+1<<12, 12, &h) == 0);
     serialize_hll(&s, &h);
     fail_unless(hll_destroy(&h) == 0);
 
@@ -17,8 +17,8 @@ START_TEST(test_hll_serialize)
 
     fail_unless(h_unserialize.representation == HLL_SPARSE);
     fail_unless(h_unserialize.precision == HLL_MIN_PRECISION);
-    fail_unless(h_unserialize.window_period == 100);
-    fail_unless(h_unserialize.window_precision == 1);
+    fail_unless(h_unserialize.window_period == 100+1<<12);
+    fail_unless(h_unserialize.window_precision == 12);
     fail_unless(hll_destroy(&h_unserialize) == 0);
 }
 END_TEST
@@ -93,23 +93,57 @@ START_TEST(test_serialize_primitives)
     long e2 = 0;
     unsigned char t3 = 7;
     unsigned char e3 = 0;
-    time_t t4 = 10001;
+    time_t t4 = time(NULL);
     time_t e4 = 0;
+    uint64_t t5 = 1002+(1ll<<35);
+    uint64_t e5 = 0;
 
     fail_unless(serialize_int(&s, t1) == 0);
     fail_unless(serialize_long(&s, t2) == 0);
     fail_unless(serialize_unsigned_char(&s, t3) == 0);
     fail_unless(serialize_time(&s, t4) == 0);
+    fail_unless(serialize_ulong_long(&s, t5) == 0);
 
     s.offset = 0;
     fail_unless(unserialize_int(&s, &e1) == 0);
     fail_unless(unserialize_long(&s, &e2) == 0);
     fail_unless(unserialize_unsigned_char(&s, &e3) == 0);
     fail_unless(unserialize_time(&s, &e4) == 0);
+    fail_unless(unserialize_ulong_long(&s, &e5) == 0);
 
     fail_unless(t1 == e1);
     fail_unless(t2 == e2);
     fail_unless(t3 == e3);
     fail_unless(t4 == e4);
+    fail_unless(t5 == e5);
+}
+END_TEST
+
+START_TEST(test_hll_serialize_sparse) {
+    hll_t h, h_unserialize;
+    char buf[200];
+    fail_unless(hll_init(12, 100, 1, &h) == 0);
+    for (int i=0; i < 100; i++) {
+        fail_unless(sprintf((char*)&buf, "test%d", i));
+        hll_add_at_time(&h, (char*)&buf, 100);
+    }
+    for (int i=0; i < 100; i++) {
+        fail_unless(sprintf((char*)&buf, "test%d", i));
+        hll_add_at_time(&h, (char*)&buf, 100);
+    }
+
+    unsigned char buf2[4096];
+    serialize_t s = { buf2, 0, 4096 };
+    fail_unless(serialize_hll(&s, &h) == 0);
+    fail_unless(hll_destroy(&h) == 0);
+
+    s.offset = 0;
+    fail_unless(unserialize_hll(&s, &h_unserialize) == 0);
+
+    double size = hll_size_total(&h_unserialize);
+    fail_unless(97 < size && 102 > size);
+
+    fail_unless(hll_destroy(&h_unserialize) == 0);
+
 }
 END_TEST

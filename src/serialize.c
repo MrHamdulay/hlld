@@ -40,38 +40,35 @@ int unserialize_int(serialize_t *s, int *i) {
 }
 
 int serialize_time(serialize_t *s, time_t t) {
+    assert(sizeof(time_t) == 8);
     unsigned char *time_char = (unsigned char*)&t;
-    ERR(serialize_unsigned_char(s, time_char[0]));
-    ERR(serialize_unsigned_char(s, time_char[1]));
-    ERR(serialize_unsigned_char(s, time_char[2]));
-    ERR(serialize_unsigned_char(s, time_char[3]));
+    for(int i=0; i<8; i++)
+        ERR(serialize_unsigned_char(s, time_char[i]));
     return 0;
 }
 
-int unserialize_time(serialize_t *s, time_t *i) {
-    unsigned char t2[4];
+int unserialize_time(serialize_t *s, time_t *time) {
+    unsigned char t2[8];
     unsigned char *t = t2;
-    ERR(unserialize_unsigned_char(s, &t[0]));
-    ERR(unserialize_unsigned_char(s, &t[1]));
-    ERR(unserialize_unsigned_char(s, &t[2]));
-    ERR(unserialize_unsigned_char(s, &t[3]));
-    *i = *((time_t*)t);
+    for(int i=0; i<8; i++)
+        ERR(unserialize_unsigned_char(s, &t[i]));
+    *time = *((time_t*)t);
     return 0;
 }
 
 int serialize_ulong_long(serialize_t *s, uint64_t i) {
-    if (s->offset + sizeof(uint64_t) >= s->size)
-        return -1;
-    *(uint64_t*)(s->memory+s->offset) = i;
-    s->offset += sizeof(uint64_t);
+    unsigned char *cchar = (unsigned char*)&i;
+    for(int j=0; j<8; j++)
+        ERR(serialize_unsigned_char(s, cchar[j]));
     return 0;
 }
 
 int unserialize_ulong_long(serialize_t *s, uint64_t *i) {
-    if (s->offset + sizeof(uint64_t) >= s->size)
-        return -1;
-    *i = *((uint64_t*)s->memory+s->offset);
-    s->offset += sizeof(uint64_t);
+    unsigned char t2[8];
+    unsigned char *t = t2;
+    for(int j=0; j<8; j++)
+        ERR(unserialize_unsigned_char(s, &t[j]));
+    *i = *((uint64_t*)t);
     return 0;
 }
 
@@ -134,6 +131,11 @@ int unserialize_hll_sparse_point(serialize_t *s, hll_sparse_point *p) {
 }
 
 int serialize_hll(serialize_t *s, hll_t *h) {
+    size_t expected_size = serialized_hll_size(h);
+    if (s->size < expected_size) {
+        printf("buffer too small\n");
+        return -1;
+    }
     ERR(serialize_int(s, SERIAL_VERSION));
     ERR(serialize_int(s, (int)h->representation));
     ERR(serialize_int(s, (int)h->precision));
@@ -172,7 +174,7 @@ int unserialize_hll(serialize_t *s, hll_t *h) {
         for(int i=0; i<num_regs; i++) {
             ERR(unserialize_hll_register(s, &h->dense_registers[i]));
         }
-    } else {
+    } else if (h->representation == HLL_SPARSE) {
         h->sparse = (hll_sparse*)calloc(sizeof(hll_sparse), 1);
         ERR(unserialize_int(s, &h->sparse->size));
         h->sparse->capacity = h->sparse->size;
@@ -180,6 +182,8 @@ int unserialize_hll(serialize_t *s, hll_t *h) {
         for(int i=0; i<h->sparse->size; i++) {
             ERR(unserialize_hll_sparse_point(s, &h->sparse->points[i]));
         }
+    } else {
+        assert(0);
     }
     return 0;
 }

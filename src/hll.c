@@ -73,7 +73,9 @@ int hll_destroy(hll_t *h) {
         free(h->dense_registers);
         h->dense_registers = NULL;
     } else {
-        free(h->sparse->points);
+        if (h->sparse->points != NULL) {
+            free(h->sparse->points);
+        }
         h->sparse->points = NULL;
         free(h->sparse);
         h->sparse = NULL;
@@ -188,14 +190,6 @@ void hll_sparse_add_point(hll_t *h, uint64_t hash, time_t time_added) {
                 sparse->capacity,
                 sizeof(hll_sparse_point));
     }
-
-    int register_idx = hash >> (64 - h->precision);
-
-    // Shift out the index bits
-    uint64_t hash2 = hash << h->precision | (1 << (h->precision -1));
-
-    // Determine the count of leading zeros
-    int leading_insert = __builtin_clzll(hash2) + 1;
     
     // remove all points with smaller register value or that have expired.
     // it's the worst that this is duplicated code....
@@ -207,17 +201,8 @@ void hll_sparse_add_point(hll_t *h, uint64_t hash, time_t time_added) {
         if (other_hash == hash)
             return;
 
-        int register_index_other = other_hash >> (64 - h->precision);
-        other_hash = other_hash << h->precision | (1 << (h->precision -1));
-        int leading_other = __builtin_clzll(other_hash)+1;
-        
-        // if it's the same register, the time is out of the max time bound 
-        // or the leading values are smaller then remove
-        if (register_idx == register_index_other &&
-            (
-            leading_other <= leading_insert ||
-            sparse->points[i].timestamp <= max_time
-            )) {
+        // if the old register is too ooold
+        if (sparse->points[i].timestamp <= max_time) {
             hll_sparse_remove_point(h, i);
         }
     }
@@ -228,7 +213,7 @@ void hll_sparse_add_point(hll_t *h, uint64_t hash, time_t time_added) {
         // if increasing the capacity takes us over the limit convert to dense representation
         const int max_size = NUM_REG(h->precision);
         // convert to the dense representation
-        if (sparse->capacity > max_size) {
+        if (sparse->size > max_size) {
             hll_convert_dense(h);
             assert(h->representation == HLL_DENSE);
             hll_add_hash_at_time(h, hash, time_added);
@@ -358,6 +343,7 @@ double hll_bias_estimate(hll_t *hu, double raw_est) {
     }
 
     // Get the proper arrays based on precision
+    assert(precision >= 4 && precision <= 18);
     double *estimates = *(rawEstimateData+(precision-4));
     double *biases = *(biasData+(precision-4));
 

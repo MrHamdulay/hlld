@@ -23,6 +23,8 @@ int serialize_unsigned_char(serialize_t *s, unsigned char c);
 int unserialize_unsigned_char(serialize_t *s, unsigned char *c);
 int serialize_time(serialize_t *s, time_t i);
 int unserialize_time(serialize_t *s, time_t *i);
+int serialize_ulong_long(serialize_t *s, uint64_t i);
+int unserialize_ulong_long(serialize_t *s, uint64_t *i);
 
 int unserialize_hll_from_file(int fileno, uint64_t len, hll_t *h);
 int unserialize_hll_from_filename(char *filename, hll_t *h);

@@ -13,6 +13,7 @@ START_TEST(test_shll_add_register)
 {
     hll_t h;
     fail_unless(hll_init(10, 100, 1, &h) == 0);
+    hll_convert_dense(&h);
     hll_dense_point p = {100, 3};
     fail_unless(h.precision == 10);
     hll_register_add_point(&h, &h.dense_registers[0], p);
@@ -26,6 +27,7 @@ START_TEST(test_shll_remove_smaller)
 {
     hll_t h;
     fail_unless(hll_init(10, 100, 1, &h) == 0);
+    hll_convert_dense(&h);
     int num_points = 10;
     int points_leading_value[] = {8, 9, 6, 6, 7, 4, 5, 2, 9, 1, 5};
     int expected_size[] = {1, 1, 2, 2, 2, 3, 3, 4, 1, 2, 2};
@@ -45,6 +47,7 @@ START_TEST(test_shll_remove_time)
 {
     hll_t h;
     fail_unless(hll_init(10, 100, 1, &h) == 0);
+    hll_convert_dense(&h);
     int num_points = 6;
     int points_time[] = {100, 200, 299, 300, 301, 302};
     int expected_size[] = {1, 1, 2, 2, 3, 4};
@@ -77,6 +80,7 @@ START_TEST(test_shll_shrink_register)
 {
     hll_t h;
     fail_unless(hll_init(10, 100, 1, &h) == 0);
+    hll_convert_dense(&h);
 
     hll_register *r = &h.dense_registers[0];
     // add 100 points

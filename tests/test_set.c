@@ -172,6 +172,7 @@ START_TEST(test_set_restore)
     res = init_set(&config, (char*)"test_set5", 0, &set);
     fail_unless(res == 0);
 
+
     // Check all the keys get added
     char buf[100];
     for (int i=0;i<10000;i++) {
@@ -179,6 +180,7 @@ START_TEST(test_set_restore)
         res = hset_add(set, (char*)&buf, 60);
         fail_unless(res == 0);
     }
+    fail_unless(set->hll.precision >= 4 && set->hll.precision <= 18);
 
     // Get the size
     uint64_t size = hset_size_total(set);
@@ -281,6 +283,7 @@ START_TEST(test_set_page_out)
 
     hlld_set *set = NULL;
     res = init_set(&config, (char*)"test_set10", 0, &set);
+    printf("precision %d\n", (int)set->hll.precision);
     fail_unless(res == 0);
 
     set_counters *counters = hset_counters(set);
