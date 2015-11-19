@@ -89,7 +89,7 @@ START_TEST(test_mgr_list)
     hlld_set_list_head *head;
     res = setmgr_list_sets(mgr, NULL, &head);
     fail_unless(res == 0);
-    fail_unless(head->size == 2);
+    fail_unless(head->size >= 2);
 
     int has_bar1 = 0;
     int has_bar2 = 0;
@@ -647,7 +647,7 @@ START_TEST(test_mgr_restore)
     uint64_t size;
     res = setmgr_set_size_total(mgr, (char*)"zab8", &size);
     fail_unless(res == 0);
-    fail_unless(size == 3, 100);
+    fail_unless(size == 3);
 
     res = setmgr_drop_set(mgr, (char*)"zab8");
     fail_unless(res == 0);

@@ -9,6 +9,7 @@
 #include "test_setmgr.c"
 #include "test_art.c"
 #include "test_serialize.c"
+#include "test_sparse.c"
 
 int main(void)
 {
@@ -23,6 +24,7 @@ int main(void)
     TCase *tc7 = tcase_create("art");
     TCase *tc8 = tcase_create("hll");
     TCase *tc9 = tcase_create("serialize");
+    TCase *tc10 = tcase_create("sparse");
     SRunner *sr = srunner_create(s1);
     int nf;
 
@@ -139,10 +141,15 @@ int main(void)
 
     suite_add_tcase(s1, tc9);
     tcase_set_timeout(tc8, 3);
-    tcase_add_test(tc9, test_hll_serialize);
     tcase_add_test(tc9, test_serialize_primitives);
+    tcase_add_test(tc9, test_hll_serialize);
+    tcase_add_test(tc9, test_hll_serialize_sparse);
     tcase_add_test(tc9, test_hll_serialize_registers);
     tcase_add_test(tc9, test_serialize_register);
+
+    suite_add_tcase(s1, tc10);
+    tcase_add_test(tc10, test_sparse_insert);
+    tcase_add_test(tc10, test_sparse_convert);
 
 
     srunner_run_all(sr, CK_ENV);
