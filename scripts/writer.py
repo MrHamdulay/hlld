@@ -31,17 +31,19 @@ dump format
 start_time = time.time()
 last_time = time.time()
 
-for i, line in enumerate(dump):
-    data = json.loads(line)
-    key, value = json.dumps(data['key']), json.dumps(data['values'])
-    key = key.encode('base64')
-    timestamp = data['timestamp']
-    client.add_many(timestamp, key, [value])
-    if i % 1000 == 0:
-        l_time = time.time()
-        print '%d processed. last 1000 took %.2f s total time %.2f s' % (i, l_time - last_time, l_time - start_time)
-        last_time = l_time
+try:
+    for i, line in enumerate(dump):
+        data = json.loads(line)
+        key, value = json.dumps(data['key']), json.dumps(data['values'])
+        key = key.encode('base64')
+        timestamp = data['timestamp']
+        client.add_many(timestamp, key, [value])
+        if i % 1000 == 0:
+            l_time = time.time()
+            print '%d processed. last 1000 took %.2f s total time %.2f s' % (i, l_time - last_time, l_time - start_time)
+            last_time = l_time
 
-end_time = time.time()
+    end_time = time.time()
 
-transport.close()
+finally:
+    transport.close()
