@@ -57,6 +57,7 @@ int init_set(struct hlld_config *config, char *set_name, int discover, struct hl
     s->is_proxied = 1;
     s->hll.precision = config->default_precision;
 
+    s->is_config_dirty = 0;
     // Store the things
     s->config = config;
     s->set_name = strdup(set_name);
@@ -193,13 +194,17 @@ int hset_flush(struct hlld_set *set) {
     //set->set_config.size = hset_size_total(set);
 
     // Write out set_config
-    char *config_name = join_path(set->full_path, (char*)CONFIG_FILENAME);
+    int res = 0;
     char *serialized_name = join_path(set->full_path, (char*)DATA_FILE_NAME);
-    int res = update_filename_from_set_config(config_name, &set->set_config);
-    free(config_name);
-    if (res) {
-        syslog(LOG_ERR, "Failed to write set '%s' configuration. Err: %d.",
-                set->set_name, res);
+    if (set->is_config_dirty == 1) {
+        char *config_name = join_path(set->full_path, (char*)CONFIG_FILENAME);
+        res = update_filename_from_set_config(config_name, &set->set_config);
+        free(config_name);
+        if (res) {
+            syslog(LOG_ERR, "Failed to write set '%s' configuration. Err: %d.",
+                    set->set_name, res);
+        }
+        set->is_config_dirty = 0;
     }
 
     // Turn dirty off

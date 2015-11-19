@@ -198,7 +198,7 @@ START_TEST(test_set_restore)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir((char*)"/tmp/hlld/5tes_/hlld.test_set5") == 2);
+    fail_unless(delete_dir((char*)"/tmp/hlld/5tes_/hlld.test_set5") == 1);
 }
 END_TEST
 
@@ -238,7 +238,7 @@ START_TEST(test_set_flush)
 
     res = destroy_set(set2);
     fail_unless(res == 0);
-    fail_unless(delete_dir((char*)"/tmp/hlld/6tes_/hlld.test_set6") == 2);
+    fail_unless(delete_dir((char*)"/tmp/hlld/6tes_/hlld.test_set6") == 1);
 }
 END_TEST
 
@@ -270,7 +270,7 @@ START_TEST(test_set_add_in_mem)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir((char*)"/tmp/hlld/7tes_/hlld.test_set7") == 1);
+    fail_unless(delete_dir((char*)"/tmp/hlld/7tes_/hlld.test_set7") == 0);
 }
 END_TEST
 
@@ -314,7 +314,7 @@ START_TEST(test_set_page_out)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir((char*)"/tmp/hlld/01tes/hlld.test_set10") == 2);
+    fail_unless(delete_dir((char*)"/tmp/hlld/01tes/hlld.test_set10") == 1);
 }
 END_TEST
 

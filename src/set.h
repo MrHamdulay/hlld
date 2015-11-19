@@ -31,6 +31,7 @@ struct hlld_set {
     char is_proxied;                // Is the bitmap available
     pthread_mutex_t hll_lock;       // Protects faulting in the HLL
 
+    char is_config_dirty;
     char is_dirty;                  // Has a write happened
     hlld_bitmap bm;                 // Bitmap for the HLL
     hll_t hll;                      // Underlying HLL
