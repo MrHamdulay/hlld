@@ -149,7 +149,6 @@ START_TEST(test_set_add)
         fail_unless(res == 0);
     }
 
-    int s = hset_size_total(set);
     fail_unless(hset_size_total(set) > 9800 && hset_size_total(set) < 10200);
     fail_unless(hset_byte_size(set) == 3280);
     fail_unless(counters->sets == 10000);

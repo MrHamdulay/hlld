@@ -183,7 +183,7 @@ void hll_sparse_remove_point(hll_t *h, size_t i) {
 
 void hll_sparse_add_point(hll_t *h, uint64_t hash, time_t time_added) {
     hll_sparse *sparse = h->sparse;
-    if (sparse->points == NULL) {
+    if (sparse->points == NULL || sparse->capacity == 0) {
         sparse->capacity = 4;
         sparse->size = 0;
         sparse->points = (hll_sparse_point*)calloc(

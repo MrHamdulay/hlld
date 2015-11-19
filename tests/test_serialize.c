@@ -8,7 +8,7 @@ START_TEST(test_hll_serialize)
     serialize_t s = { buf, 0, 2048 };
     
     hll_t h, h_unserialize;
-    fail_unless(hll_init(HLL_MIN_PRECISION, 100+1<<12, 12, &h) == 0);
+    fail_unless(hll_init(HLL_MIN_PRECISION, 100+(1<<12), 12, &h) == 0);
     serialize_hll(&s, &h);
     fail_unless(hll_destroy(&h) == 0);
 
@@ -17,7 +17,7 @@ START_TEST(test_hll_serialize)
 
     fail_unless(h_unserialize.representation == HLL_SPARSE);
     fail_unless(h_unserialize.precision == HLL_MIN_PRECISION);
-    fail_unless(h_unserialize.window_period == 100+1<<12);
+    fail_unless(h_unserialize.window_period == 100+(1<<12));
     fail_unless(h_unserialize.window_precision == 12);
     fail_unless(hll_destroy(&h_unserialize) == 0);
 }
@@ -29,6 +29,7 @@ START_TEST(test_serialize_register)
     serialize_t s = { buf, 0, 2048 };
     
     hll_t h;
+    h.window_precision = 1;
     hll_register r = {0, 0, NULL}, r_unserialize;
     hll_dense_point p = {13, 19};
     hll_register_add_point(&h, &r, p);

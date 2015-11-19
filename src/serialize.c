@@ -109,7 +109,11 @@ int serialize_hll_register(serialize_t *s, hll_register *h) {
 int unserialize_hll_register(serialize_t *s, hll_register *h) {
     ERR(unserialize_long(s, &h->size));
     h->capacity = h->size;
-    h->points = (hll_dense_point*)malloc(h->capacity*sizeof(hll_dense_point));
+    if (h->capacity == 0) {
+        h->points = NULL;
+    } else {
+        h->points = (hll_dense_point*)malloc(h->capacity*sizeof(hll_dense_point));
+    }
     for (long i=0; i<h->size; i++) {
         ERR(unserialize_time(s, &h->points[i].timestamp));
         ERR(unserialize_long(s, &h->points[i].register_));
