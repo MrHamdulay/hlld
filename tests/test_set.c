@@ -77,7 +77,7 @@ START_TEST(test_set_init_discover_destroy)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    int num_deleted = delete_dir((char*)"/tmp/hlld/hlld.test_set");
+    int num_deleted = delete_dir((char*)"/tmp/hlld/tes_t/hlld.test_set");
     fail_unless(num_deleted == 2 || num_deleted == 1);
 }
 END_TEST
@@ -98,7 +98,7 @@ START_TEST(test_set_init_discover_delete)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set2") == 0);
+    fail_unless(delete_dir((char*)"/tmp/hlld/2tes_/hlld.test_set2") == 0);
 }
 END_TEST
 
@@ -124,7 +124,7 @@ START_TEST(test_set_init_proxied)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set3") == 0);
+    fail_unless(delete_dir((char*)"/tmp/hlld/3tes_/hlld.test_set3") == 0);
 }
 END_TEST
 
@@ -155,7 +155,7 @@ START_TEST(test_set_add)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    int delete_num = delete_dir((char*)"/tmp/hlld/hlld.test_set4");
+    int delete_num = delete_dir((char*)"/tmp/hlld/4tes_/hlld.test_set4");
     // we do not always write a registers file
     fail_unless(delete_num == 2 || delete_num == 1);
 }
@@ -198,7 +198,7 @@ START_TEST(test_set_restore)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set5") == 2);
+    fail_unless(delete_dir((char*)"/tmp/hlld/5tes_/hlld.test_set5") == 2);
 }
 END_TEST
 
@@ -238,7 +238,7 @@ START_TEST(test_set_flush)
 
     res = destroy_set(set2);
     fail_unless(res == 0);
-    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set6") == 2);
+    fail_unless(delete_dir((char*)"/tmp/hlld/6tes_/hlld.test_set6") == 2);
 }
 END_TEST
 
@@ -270,7 +270,7 @@ START_TEST(test_set_add_in_mem)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set7") == 1);
+    fail_unless(delete_dir((char*)"/tmp/hlld/7tes_/hlld.test_set7") == 1);
 }
 END_TEST
 
@@ -314,7 +314,7 @@ START_TEST(test_set_page_out)
 
     res = destroy_set(set);
     fail_unless(res == 0);
-    fail_unless(delete_dir((char*)"/tmp/hlld/hlld.test_set10") == 2);
+    fail_unless(delete_dir((char*)"/tmp/hlld/01tes/hlld.test_set10") == 2);
 }
 END_TEST
 

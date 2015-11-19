@@ -916,7 +916,7 @@ static int load_existing_sets(struct hlld_setmgr *mgr) {
     struct dirent **namelist;
     int num;
 
-    num = scandir(mgr->config->data_dir, &namelist, set_hlld_folders, NULL);
+    num = scandir(mgr->config->data_dir, &namelist, NULL, NULL);
     if (num == -1) {
         syslog(LOG_ERR, "Failed to scan files for existing sets!");
         return -1;
@@ -925,11 +925,20 @@ static int load_existing_sets(struct hlld_setmgr *mgr) {
 
     // Add all the sets
     for (int i=0; i< num; i++) {
-        char *folder_name = namelist[i]->d_name;
-        char *set_name = folder_name + FOLDER_PREFIX_LEN;
-        if (add_set(mgr, set_name, mgr->config, 0, 0)) {
-            syslog(LOG_ERR, "Failed to load set '%s'!", set_name);
+        struct dirent **namelist_subdir;
+        char *subfolder_name = join_path(mgr->config->data_dir, namelist[i]->d_name);
+        int num_subdir = scandir(subfolder_name, &namelist_subdir, set_hlld_folders, NULL);
+
+        for(int j=0; j<num_subdir; j++) {
+            char *set_name = namelist_subdir[j]->d_name + FOLDER_PREFIX_LEN;
+
+            if (add_set(mgr, set_name, mgr->config, 0, 0)) {
+                syslog(LOG_ERR, "Failed to load set '%s'!", set_name);
+            }
+            free(namelist_subdir[j]);
         }
+        free(namelist_subdir);
+        free(subfolder_name);
     }
 
     for (int i=0; i < num; i++) free(namelist[i]);

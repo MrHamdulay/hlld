@@ -74,8 +74,24 @@ int init_set(struct hlld_config *config, char *set_name, int discover, struct hl
     res = asprintf(&folder_name, SET_FOLDER_NAME, s->set_name);
     assert(res != -1);
 
+    char subdir_name[11];
+    int set_name_len = strlen(s->set_name);
+    int i=0;
+    for(; i<5 && set_name_len-i-1 >= 0; i++) {
+        subdir_name[i] = s->set_name[set_name_len-i-1];
+    }
+    subdir_name[i] = 0;
+
+    s->full_path = join_path(config->data_dir, subdir_name);
+    // Try to create the folder path
+    res = mkdir(s->full_path, 0755);
+    if (res && errno != EEXIST) {
+        syslog(LOG_ERR, "Failed to create set directory '%s'. Err: %d [%d]", s->full_path, res, errno);
+        return res;
+    }
+
     // Compute the full path
-    s->full_path = join_path(config->data_dir, folder_name);
+    s->full_path = join_path(s->full_path, folder_name);
     free(folder_name);
 
     // Initialize the locks
