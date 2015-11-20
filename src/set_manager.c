@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
 #include <syslog.h>
 #include <pthread.h>
 #include <dirent.h>
@@ -10,8 +9,6 @@
 #include "art.h"
 #include "set.h"
 #include "type_compat.h"
-
-extern void MurmurHash3_x64_128(const void * key, const int len, const uint32_t seed, void *out);
 
 /**
  * This defines how log we sleep between vacuum poll
@@ -61,7 +58,6 @@ typedef struct set_list {
     delta_type type;
     struct hlld_set_wrapper *set;
     struct set_list *next;
-    uint64_t set_name_hash;
 } set_list;
 
 /**
@@ -717,13 +713,10 @@ static struct hlld_set_wrapper* find_set(struct hlld_setmgr *mgr, char *set_name
 
     // Search the delta list
     set_list *current = mgr->delta;
-    uint64_t set_name_hash = 0;
-    MurmurHash3_x64_128(set_name, strlen(set_name), 0, &set_name_hash);
     while (current) {
         // Check if this is a match
         if (current->type != BARRIER &&
             strcmp(current->set->set->set_name, set_name) == 0) {
-            assert(current->set_name_hash == set_name_hash);
             return current->set;
         }
 
@@ -964,7 +957,6 @@ static int load_existing_sets(struct hlld_setmgr *mgr) {
  */
 static unsigned long long create_delta_update(struct hlld_setmgr *mgr, delta_type type, struct hlld_set_wrapper *set) {
     set_list *delta = (set_list*)malloc(sizeof(set_list));
-    MurmurHash3_x64_128(set->set->set_name, strlen(set->set->set_name), 0, &delta->set_name_hash);
     delta->vsn = ++mgr->vsn;
     delta->type = type;
     delta->set = set;
