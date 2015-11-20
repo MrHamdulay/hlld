@@ -61,7 +61,7 @@ typedef struct set_list {
     delta_type type;
     struct hlld_set_wrapper *set;
     struct set_list *next;
-    uint64_t set_name_hash;
+    uint64_t set_name_hash[2];
 } set_list;
 
 /**
@@ -717,8 +717,8 @@ static struct hlld_set_wrapper* find_set(struct hlld_setmgr *mgr, char *set_name
 
     // Search the delta list
     set_list *current = mgr->delta;
-    uint64_t set_name_hash = 0;
-    MurmurHash3_x64_128(set_name, strlen(set_name), 0, &set_name_hash);
+    uint64_t set_name_hash[2];
+    MurmurHash3_x64_128(set_name, strlen(set_name), 0, set_name_hash);
     while (current) {
         // Check if this is a match
         if (current->type != BARRIER &&
@@ -964,7 +964,7 @@ static int load_existing_sets(struct hlld_setmgr *mgr) {
  */
 static unsigned long long create_delta_update(struct hlld_setmgr *mgr, delta_type type, struct hlld_set_wrapper *set) {
     set_list *delta = (set_list*)malloc(sizeof(set_list));
-    MurmurHash3_x64_128(set->set->set_name, strlen(set->set->set_name), 0, &delta->set_name_hash);
+    MurmurHash3_x64_128(set->set->set_name, strlen(set->set->set_name), 0, delta->set_name_hash);
     delta->vsn = ++mgr->vsn;
     delta->type = type;
     delta->set = set;
