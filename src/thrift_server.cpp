@@ -117,7 +117,6 @@ TThreadPoolServer *thrift_server;
 
 
 void start_thrift_server(hlld_setmgr *mgr) {
-  setmgr_client_checkpoint(mgr);
   int port = 9090;
   shared_ptr<SlidingHyperServiceHandler> handler(new SlidingHyperServiceHandler(mgr));
   shared_ptr<TProcessor> processor(new SlidingHyperServiceProcessor(handler));
@@ -133,7 +132,6 @@ void start_thrift_server(hlld_setmgr *mgr) {
  threadManager->threadFactory(threadFactory);
 
  threadManager->start();
-printf("thread manager state %d\n", threadManager->state());
 
   thrift_server = new TThreadPoolServer(processor, serverTransport, transportFactory, protocolFactory, threadManager);
   syslog(LOG_INFO, "Starting thrift server");
