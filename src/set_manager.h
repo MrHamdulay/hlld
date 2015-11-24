@@ -181,4 +181,6 @@ int setmgr_set_cb(struct hlld_setmgr *mgr, char *set_name, set_cb cb, void* data
  */
 void setmgr_vacuum(struct hlld_setmgr *mgr);
 
+struct hlld_set* setmgr_get_set(struct hlld_setmgr *mgr, char *set_name);
+
 #endif

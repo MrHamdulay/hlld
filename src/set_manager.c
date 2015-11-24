@@ -1230,3 +1230,11 @@ void setmgr_vacuum(struct hlld_setmgr *mgr) {
     delete_old_versions(mgr, vsn);
 }
 
+
+struct hlld_set* setmgr_get_set(struct hlld_setmgr *mgr, char *set_name) {
+    struct hlld_set_wrapper *set = take_set(mgr, set_name);
+    if(!set || !set->is_active)
+        return NULL;
+    return set->set;
+}
+
