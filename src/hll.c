@@ -208,7 +208,9 @@ void hll_sparse_add_point(hll_t *h, uint64_t hash, time_t time_added) {
     }
 
     if (sparse->size+1 >= h->sparse->capacity) {
-        sparse->capacity *= 1.5;
+        while (sparse->size+1 >= sparse->capacity)
+            sparse->capacity = sparse->capacity*1.5+1;
+        assert(sparse->size+1<sparse->capacity);
 
         // if increasing the capacity takes us over the limit convert to dense representation
         const int max_size = NUM_REG(h->precision);

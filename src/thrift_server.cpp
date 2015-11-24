@@ -1,14 +1,17 @@
 #include "SlidingHyperService.h"
 #include <thrift/protocol/TBinaryProtocol.h>
-#include <thrift/server/TSimpleServer.h>
+#include <thrift/server/TThreadPoolServer.h>
 #include <thrift/transport/TServerSocket.h>
 #include <thrift/transport/TBufferTransports.h>
+#include <thrift/concurrency/ThreadManager.h>
+#include <thrift/concurrency/PosixThreadFactory.h>
 #include <syslog.h>
 
 #include "config.h"
 #include "set_manager.h"
 #include "thrift_server.h"
 
+using namespace apache::thrift::concurrency;
 using namespace ::apache::thrift;
 using namespace ::apache::thrift::protocol;
 using namespace ::apache::thrift::transport;
@@ -110,7 +113,7 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
 
 };
 
-TSimpleServer *thrift_server;
+TThreadPoolServer *thrift_server;
 
 
 void start_thrift_server(hlld_setmgr *mgr) {
@@ -118,11 +121,21 @@ void start_thrift_server(hlld_setmgr *mgr) {
   int port = 9090;
   shared_ptr<SlidingHyperServiceHandler> handler(new SlidingHyperServiceHandler(mgr));
   shared_ptr<TProcessor> processor(new SlidingHyperServiceProcessor(handler));
-  shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
+  shared_ptr<TServerSocket> serverTransport(new TServerSocket(port));
   shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
   shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
 
-  thrift_server = new TSimpleServer(processor, serverTransport, transportFactory, protocolFactory);
+ shared_ptr<ThreadManager> threadManager = ThreadManager::newSimpleThreadManager(4);
+
+ shared_ptr<PosixThreadFactory> threadFactory
+     = shared_ptr<PosixThreadFactory>(new PosixThreadFactory());
+
+ threadManager->threadFactory(threadFactory);
+
+ threadManager->start();
+printf("thread manager state %d\n", threadManager->state());
+
+  thrift_server = new TThreadPoolServer(processor, serverTransport, transportFactory, protocolFactory, threadManager);
   syslog(LOG_INFO, "Starting thrift server");
   thrift_server->serve();
   syslog(LOG_INFO, "Stopping thrift server");
