@@ -55,11 +55,36 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
   int32_t card(const int32_t timestamp, const int32_t window, const std::vector<std::string> & keys, const std::vector<std::string> & values) {
       //add(timestamp, 
       //return get_union(timestamp, window, keys);
+      setmgr_client_checkpoint(mgr);
+
+      std::vector<hll_t> sets;
+      for(size_t i=0; i<values.size(); i++) {
+          char *set_name = &values[i][0];
+          hlld_set *set = setmgr_get_set(mgr, set_name);
+          if (set != NULL)
+              sets.push_back(set->hll);
+      }
+
+      // if there aren't actually any sets for keys
+      if (sets.size() == 0) {
+          return values.size();
+      }
+
+      // calculate union of all keys
+      hll_t result_set;
+      hll_init(sets[0]->precision, sets[0]->window_period, sets[0]->window_precision, result_set)
+      for(std::string value: values) {
+          hll_add_at_time(&result_set, (char*)&value[0], (time_t)timestamp);
+      }
+      sets.push_back(&result_set);
+
+      double result = hll_union_size((hll_t**)&sets[0], sets.size(), window, timestamp);
+
+      return (int32_t)result;
   }
 
   void flush() {
     // Your implementation goes here
-    printf("flush\n");
   }
 
   void add(const int32_t timestamp, const std::string& key, const std::string& value) {
