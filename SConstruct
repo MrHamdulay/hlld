@@ -4,6 +4,7 @@ plat = platform.system()
 envmurmur = Environment(CC='clang', CXX='clang++', CPPPATH = ['deps/murmurhash/'], CPPFLAGS="-fno-exceptions -O0")
 murmur = envmurmur.Library('murmur', Glob("deps/murmurhash/*.cpp"))
 
+
 envinih = Environment(CC='gcc-4.9', CXX='g++-4.9', CPATH = ['deps/inih/'], CFLAGS="-O0")
 inih = envinih.Library('inih', Glob("deps/inih/*.c"))
 
@@ -19,7 +20,7 @@ objs =  env_with_err.Object('src/config', 'src/config.c') + \
         env_with_err.Object('src/bitmap', 'src/bitmap.c') + \
         env_with_err.Object('src/set', 'src/set.c') + \
         env_with_err.Object('src/set_manager', 'src/set_manager.c') + \
-        env_with_err.Object('src/serialize', 'src/serialize.c') + \
+        env_with_err.Object('src/serialize', 'src/serialize.cpp') + \
         env_without_err.Object('src/networking', 'src/networking.c') + \
         env_with_err.Object('src/conn_handler', 'src/conn_handler.c') + \
         env_with_err.Object('src/art', 'src/art.c') + \
@@ -30,7 +31,7 @@ objs =  env_with_err.Object('src/config', 'src/config.c') + \
         #env_without_err.Object('deps/libev/ev', 'deps/libev/ev.c')
 
 
-libs = ["pthread", murmur, inih, "m", "thrift"]
+libs = ["pthread", murmur, inih, "m", "thrift", "rocksdb"]
 if plat == 'Linux':
    libs.append("rt")
 

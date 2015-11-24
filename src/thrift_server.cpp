@@ -1,9 +1,10 @@
 #include "SlidingHyperService.h"
 #include <thrift/protocol/TBinaryProtocol.h>
-#include <thrift/server/TSimpleServer.h>
+#include <thrift/server/TThreadedServer.h>
 #include <thrift/transport/TServerSocket.h>
 #include <thrift/transport/TBufferTransports.h>
 #include <syslog.h>
+#include <boost/make_shared.hpp>
 
 #include "config.h"
 #include "set_manager.h"
@@ -13,6 +14,7 @@ using namespace ::apache::thrift;
 using namespace ::apache::thrift::protocol;
 using namespace ::apache::thrift::transport;
 using namespace ::apache::thrift::server;
+using namespace ::apache::thrift::async;
 
 using boost::shared_ptr;
 
@@ -110,19 +112,20 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
 
 };
 
-TSimpleServer *thrift_server;
+TThreadedServer *thrift_server;
 
 
 void start_thrift_server(hlld_setmgr *mgr) {
   setmgr_client_checkpoint(mgr);
   int port = 9090;
   shared_ptr<SlidingHyperServiceHandler> handler(new SlidingHyperServiceHandler(mgr));
-  shared_ptr<TProcessor> processor(new SlidingHyperServiceProcessor(handler));
-  shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
-  shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
-  shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
 
-  thrift_server = new TSimpleServer(processor, serverTransport, transportFactory, protocolFactory);
+  shared_ptr<TProcessor> processor(new SlidingHyperServiceProcessor(handler));
+  thrift_server = new TThreadedServer(
+          processor,
+    boost::make_shared<TServerSocket>(9090), //port
+    boost::make_shared<TBufferedTransportFactory>(),
+    boost::make_shared<TBinaryProtocolFactory>());
   syslog(LOG_INFO, "Starting thrift server");
   thrift_server->serve();
   syslog(LOG_INFO, "Stopping thrift server");

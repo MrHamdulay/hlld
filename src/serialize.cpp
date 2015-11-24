@@ -11,9 +11,15 @@
 #include "serialize.h"
 #include <signal.h>
 #include "hll.h"
+#include <rocksdb/db.h>
 
 #define SERIAL_VERSION 2
 #define ERR(err) if (err == -1) { return -1; }
+
+rocksdb::DB *db;
+
+void serialize_open() {
+}
 
  int serialize_int(serialize_t *s, int i) {
     if (s->offset + sizeof(int) >= s->size)
