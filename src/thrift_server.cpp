@@ -57,12 +57,12 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
       //return get_union(timestamp, window, keys);
       setmgr_client_checkpoint(mgr);
 
-      std::vector<hll_t> sets;
+      std::vector<hll_t*> sets;
       for(size_t i=0; i<values.size(); i++) {
-          char *set_name = &values[i][0];
+          char *set_name = (char*)&values[i][0];
           hlld_set *set = setmgr_get_set(mgr, set_name);
           if (set != NULL)
-              sets.push_back(set->hll);
+              sets.push_back(&set->hll);
       }
 
       // if there aren't actually any sets for keys
@@ -72,7 +72,7 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
 
       // calculate union of all keys
       hll_t result_set;
-      hll_init(sets[0]->precision, sets[0]->window_period, sets[0]->window_precision, result_set)
+      hll_init(sets[0]->precision, sets[0]->window_period, sets[0]->window_precision, &result_set);
       for(std::string value: values) {
           hll_add_at_time(&result_set, (char*)&value[0], (time_t)timestamp);
       }

@@ -140,3 +140,28 @@ START_TEST(test_hll_bytes_for_precision)
 }
 END_TEST
 
+START_TEST(test_hll_union)
+{
+    hll_t *hlls[10];
+    for(int i=0; i<10; i++) {
+        hlls[i] = (hll_t*)malloc(sizeof(hll_t));
+        fail_unless(hll_init(12, 100, 1, hlls[i]) == 0);
+    }
+    char buf[100];
+    for (int i=0; i < 10000; i++) {
+        fail_unless(sprintf((char*)&buf, "test%d", i));
+        hll_add_at_time(hlls[i%10], (char*)&buf, 100);
+    }
+
+
+    double s = hll_union_size(hlls, 10, 100, 100);
+    fail_unless(s > 9900 && s < 10100);
+    for(int i=0; i<10; i++) {
+        // check that it doesn't change the sizes of the original sets
+        double s = hll_size_total(hlls[i]);
+        fail_unless(s > 980 && s < 1100);
+        fail_unless(hll_destroy(hlls[i]) == 0);
+        free(hlls[i]);
+    }
+}
+END_TEST

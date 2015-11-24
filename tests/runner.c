@@ -76,6 +76,7 @@ int main(void)
     tcase_add_test(tc4, test_hll_precision_for_error);
     tcase_add_test(tc4, test_hll_error_for_precision);
     tcase_add_test(tc4, test_hll_bytes_for_precision);
+    tcase_add_test(tc4, test_hll_union);
 
     // Add the set tests
     suite_add_tcase(s1, tc5);

@@ -260,6 +260,11 @@ void hll_add_hash_at_time(hll_t *h, uint64_t hash, time_t time_added) {
  * Computes the raw cardinality estimate
  */
 static double hll_raw_estimate_union(hll_t **h, int num_hls, int *num_zero, time_t time_length, time_t current_time) {
+    // we can only take unions if either all representations are dense or all are sparse
+    // fornow lets convert everything to a dense representation
+    for(int i=0; i<num_hls; i++) {
+        hll_convert_dense(h[i]);
+    }
     unsigned char precision = h[0]->precision;
     int num_reg = NUM_REG(precision);
     double multi = hll_alpha(precision) * num_reg * num_reg;
