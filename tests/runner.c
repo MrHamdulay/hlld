@@ -70,13 +70,15 @@ int main(void)
     tcase_add_test(tc4, test_hll_init_and_destroy);
     tcase_add_test(tc4, test_hll_add);
     tcase_add_test(tc4, test_hll_add_hash);
+    tcase_add_test(tc4, test_hll_convert_dense);
     tcase_add_test(tc4, test_hll_add_size);
     tcase_add_test(tc4, test_hll_size_total);
     tcase_add_test(tc4, test_hll_error_bound);
     tcase_add_test(tc4, test_hll_precision_for_error);
     tcase_add_test(tc4, test_hll_error_for_precision);
     tcase_add_test(tc4, test_hll_bytes_for_precision);
-    tcase_add_test(tc4, test_hll_union);
+    tcase_add_test(tc4, test_hll_union_sparse);
+    tcase_add_test(tc4, test_hll_union_dense);
 
     // Add the set tests
     suite_add_tcase(s1, tc5);

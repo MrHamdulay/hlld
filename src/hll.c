@@ -132,6 +132,7 @@ void hll_register_add_point(hll_t *h, hll_register *r, hll_dense_point p) {
     }
 
     r->size++;
+    assert(r->size > 0);
 
     // if we have exceeded capacity we resize
     if(r->size > r->capacity) {
@@ -153,7 +154,7 @@ int hll_get_register(hll_t *h, int register_index, time_t time_length, time_t cu
     int register_value = 0;
 
     for(int i=0; i<r->size; i++) {
-        if (r->points[i].timestamp > min_time && r->points[i].register_ > register_value) {
+        if (r->points[i].timestamp >= min_time && r->points[i].register_ > register_value) {
             register_value = r->points[i].register_;
         }
     }
@@ -166,13 +167,15 @@ void hll_convert_dense(hll_t *h) {
     if (h->representation == HLL_DENSE)
         return;
     h->representation = HLL_DENSE;
-    h->dense_registers = (hll_register*)calloc(NUM_REG(h->precision), sizeof(hll_register));
+    assert(h->dense_registers == NULL);
+    h->dense_registers = (hll_register*)calloc(NUM_REG(h->precision),sizeof(hll_register));
 
     for(int i=0; i<h->sparse->size; i++) {
         hll_add_hash_at_time(h, h->sparse->points[i].hash, h->sparse->points[i].timestamp);
     }
     free(h->sparse->points);
     free(h->sparse);
+    h->sparse = NULL;
 }
 
 void hll_sparse_remove_point(hll_t *h, size_t i) {
@@ -245,7 +248,7 @@ void hll_add_hash_at_time(hll_t *h, uint64_t hash, time_t time_added) {
         hash = hash << h->precision | (1 << (h->precision -1));
 
         // Determine the count of leading zeros
-        int leading = __builtin_clzll(hash) + 1;
+        long leading = __builtin_clzll(hash) + 1;
 
         hll_dense_point p = {time_added, leading};
         hll_register *r = &h->dense_registers[idx];
@@ -473,7 +476,7 @@ double hll_size(hll_t *h, time_t time_length, time_t current_time) {
 
 double hll_size_total(hll_t *h) {
     time_t ctime = time(NULL);
-    return hll_size(h, ctime, ctime);
+    return hll_size(h, ctime*h->window_precision, ctime);
 }
 
 

@@ -140,7 +140,7 @@ START_TEST(test_hll_bytes_for_precision)
 }
 END_TEST
 
-START_TEST(test_hll_union)
+START_TEST(test_hll_union_dense)
 {
     hll_t *hlls[10];
     for(int i=0; i<10; i++) {
@@ -163,5 +163,54 @@ START_TEST(test_hll_union)
         fail_unless(hll_destroy(hlls[i]) == 0);
         free(hlls[i]);
     }
+}
+END_TEST
+
+START_TEST(test_hll_union_sparse)
+{
+    hll_t *hlls[10];
+    for(int i=0; i<10; i++) {
+        hlls[i] = (hll_t*)malloc(sizeof(hll_t));
+        fail_unless(hll_init(12, 100, 1, hlls[i]) == 0);
+    }
+    char buf[100];
+    for (int i=0; i < 1000; i++) {
+        fail_unless(sprintf((char*)&buf, "test%d", i));
+        hll_add_at_time(hlls[i%10], (char*)&buf, 100);
+    }
+
+
+    double s = hll_union_size(hlls, 10, 100, 100);
+    fail_unless(s > 980 && s < 1100);
+    for(int i=0; i<10; i++) {
+        // check that it doesn't change the sizes of the original sets
+        double s = hll_size_total(hlls[i]);
+        fail_unless(s > 98 && s < 110);
+        fail_unless(hll_destroy(hlls[i]) == 0);
+        free(hlls[i]);
+    }
+}
+END_TEST
+
+START_TEST(test_hll_convert_dense)
+{
+    hll_t h;
+    fail_unless(hll_init(14, 100, 1, &h) == 0);
+
+    char buf[100];
+    for (int i=0; i < 100000; i++) {
+        fail_unless(sprintf((char*)&buf, "%d", i));
+        hll_add_at_time(&h, (char*)&buf, 100);
+    }
+
+    double s = hll_size_total(&h);
+    fail_unless(s > 99000 && s < 102000);
+
+    hll_convert_dense(&h);
+
+    s = hll_size_total(&h);
+    fail_unless(s > 99000 && s < 102000);
+
+    fail_unless(hll_destroy(&h) == 0);
 }
 END_TEST

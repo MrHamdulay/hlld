@@ -139,15 +139,15 @@ START_TEST(test_shll_time_queries)
     fail_unless(hll_init(14, 100, 1, &h) == 0);
 
     char buf[100];
-    for (int i=0; i < 90000; i++) {
+    for (int i=0; i < 100000; i++) {
         fail_unless(sprintf((char*)&buf, "test%d", i));
-        hll_add_at_time(&h, (char*)&buf, i/10000);
+        hll_add_at_time(&h, (char*)&buf, 2*i/10000);
     }
 
     // Should be within 1'ish%
     for(int i=0; i<9; i++) {
-        double s = hll_size(&h, i+2, 9);
-        fail_unless(s > 9900*(i+1)-100 && s < 10100*(i+1)+100);
+        double s = hll_size(&h, i, 18);
+        fail_unless(s > 5000*(i+2)-300 && s < 5000*(i+2)+300);
     }
 
     fail_unless(hll_destroy(&h) == 0);

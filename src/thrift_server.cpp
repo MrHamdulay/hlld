@@ -77,6 +77,7 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
       }
       sets.push_back(&result_set);
 
+      hll_convert_dense(&result_set);
       double result = hll_union_size((hll_t**)&sets[0], sets.size(), window, timestamp);
       hll_destroy(&result_set);
 
