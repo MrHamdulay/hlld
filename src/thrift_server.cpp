@@ -58,8 +58,8 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
       setmgr_client_checkpoint(mgr);
 
       std::vector<hll_t*> sets;
-      for(size_t i=0; i<values.size(); i++) {
-          char *set_name = (char*)&values[i][0];
+      for(size_t i=0; i<keys.size(); i++) {
+          char *set_name = (char*)&keys[i][0];
           hlld_set *set = setmgr_get_set(mgr, set_name);
           if (set != NULL)
               sets.push_back(&set->hll);
@@ -105,7 +105,6 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
       uint64_t estimate = 0;
       int res = setmgr_set_size(mgr, (char*)&key[0], &estimate, window);
       if (res == -1) {
-          res = setmgr_create_set(mgr, (char*)&key[0], NULL);
           return 0;
       } else if (res < -1) {
           syslog(LOG_ERR, "Failed to get set cardinality %s res %d", (char*)&key[0], res);
