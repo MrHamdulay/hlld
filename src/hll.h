@@ -43,7 +43,6 @@ typedef struct {
     int window_period;
     // precision to which we keep samples (in seconds)
     int window_precision;
-    int sparse_points_len;
     hll_register *dense_registers;
     hll_sparse *sparse;
 } hll_t;
