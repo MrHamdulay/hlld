@@ -53,19 +53,18 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
   }
 
   int32_t card(const int32_t timestamp, const int32_t window, const std::vector<std::string> & keys, const std::vector<std::string> & values) {
-      //add(timestamp, 
-      //return get_union(timestamp, window, keys);
       setmgr_client_checkpoint(mgr);
 
       std::vector<hll_t*> sets;
       for(size_t i=0; i<keys.size(); i++) {
-          char *set_name = (char*)&keys[i][0];
+          char *set_name = (char*)keys[i].c_str();
           hlld_set *set = setmgr_get_set(mgr, set_name);
           if (set != NULL)
               sets.push_back(&set->hll);
       }
 
       // if there aren't actually any sets for keys
+      // TODO remove duplicates from count
       if (sets.size() == 0) {
           return values.size();
       }
@@ -74,11 +73,12 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
       hll_t result_set;
       hll_init(sets[0]->precision, sets[0]->window_period, sets[0]->window_precision, &result_set);
       for(std::string value: values) {
-          hll_add_at_time(&result_set, (char*)&value[0], (time_t)timestamp);
+          hll_add_at_time(&result_set, (char*)value.c_str(), (time_t)timestamp);
       }
       sets.push_back(&result_set);
 
       double result = hll_union_size((hll_t**)&sets[0], sets.size(), window, timestamp);
+      hll_destroy(&result_set);
 
       return (int32_t)result;
   }
@@ -89,11 +89,11 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
 
   void add(const int32_t timestamp, const std::string& key, const std::string& value) {
       char *values[] = {(char*)&value[0]};
-      int res = setmgr_set_keys(mgr, (char*)&key[0], values, 1, (time_t)timestamp);
+      int res = setmgr_set_keys(mgr, (char*)key.c_str(), values, 1, (time_t)timestamp);
       // set does not exist
       if (res == -1 ) {
-          setmgr_create_set(mgr, (char*)&key[0], NULL);
-          res = setmgr_set_keys(mgr, (char*)&key[0], values, 1, (time_t)timestamp);
+          setmgr_create_set(mgr, (char*)key.c_str(), NULL);
+          res = setmgr_set_keys(mgr, (char*)key.c_str(), values, 1, (time_t)timestamp);
       }
       else if (res < -1) {
           syslog(LOG_ERR, "Failure to add to key %s with value %s res: %d", (char*)&key[0], res);
@@ -103,11 +103,11 @@ class SlidingHyperServiceHandler : virtual public SlidingHyperServiceIf {
 
   int32_t get(const int32_t timestamp, const int16_t window, const std::string& key) {
       uint64_t estimate = 0;
-      int res = setmgr_set_size(mgr, (char*)&key[0], &estimate, window);
+      int res = setmgr_set_size(mgr, (char*)key.c_str(), &estimate, window);
       if (res == -1) {
           return 0;
       } else if (res < -1) {
-          syslog(LOG_ERR, "Failed to get set cardinality %s res %d", (char*)&key[0], res);
+          syslog(LOG_ERR, "Failed to get set cardinality %s res %d", (char*)key.c_str(), res);
       }
       return estimate;
   }
